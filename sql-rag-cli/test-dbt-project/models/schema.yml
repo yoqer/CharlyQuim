@@ -1,0 +1,76 @@
+version: 2
+
+sources:
+  - name: raw_data
+    description: Raw data from source systems
+    tables:
+      - name: customers
+        description: Customer master data
+        columns:
+          - name: customer_id
+            description: Unique customer identifier
+            tests:
+              - unique
+              - not_null
+          - name: customer_name
+            description: Customer full name
+          - name: email
+            description: Customer email address
+          - name: phone
+            description: Customer phone number
+
+      - name: orders
+        description: Order transaction data
+        columns:
+          - name: order_id
+            description: Unique order identifier
+            tests:
+              - unique
+              - not_null
+          - name: customer_id
+            description: Customer who placed the order
+            tests:
+              - not_null
+          - name: order_date
+            description: Date the order was placed
+          - name: order_status
+            description: Current status of the order
+          - name: total_amount
+            description: Total order amount
+
+models:
+  - name: stg_customers
+    description: Cleaned and standardized customer data
+    columns:
+      - name: customer_id
+        description: Unique customer identifier
+        tests:
+          - unique
+          - not_null
+      - name: customer_name
+        description: Cleaned customer name
+      - name: email
+        description: Normalized email address
+
+  - name: stg_orders
+    description: Cleaned and standardized order data
+    columns:
+      - name: order_id
+        description: Unique order identifier
+        tests:
+          - unique
+          - not_null
+      - name: customer_id
+        description: Customer who placed the order
+
+  - name: customer_orders
+    description: Customer order summary with lifetime metrics
+    columns:
+      - name: customer_id
+        description: Unique customer identifier
+      - name: total_orders
+        description: Total number of orders by customer
+      - name: total_revenue
+        description: Total revenue from customer
+      - name: customer_tier
+        description: Customer segmentation based on order volume

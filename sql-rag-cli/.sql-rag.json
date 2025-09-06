@@ -1,0 +1,34 @@
+{
+  "llm": {
+    "provider": "openai",
+    "model": "gpt-4",
+    "apiKey": "your-openai-api-key",
+    "temperature": 0.1,
+    "maxTokens": 4000
+  },
+  "snowflake": {
+    "account": "your-account",
+    "user": "your-username",
+    "password": "your-password",
+    "warehouse": "your-warehouse",
+    "database": "your-database",
+    "schema": "PUBLIC"
+  },
+  "dbt": {
+    "projectPath": "./test-dbt-project",
+    "profilesDir": "~/.dbt",
+    "target": "dev"
+  },
+  "search": {
+    "maxSnippetLines": 7,
+    "numContextLines": 3,
+    "extensions": [
+      ".sql",
+      ".py",
+      ".js",
+      ".ts",
+      ".yml",
+      ".yaml"
+    ]
+  }
+}
