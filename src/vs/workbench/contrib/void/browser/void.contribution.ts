@@ -22,6 +22,10 @@ import './autocompleteService.js'
 // import './contextGatheringService.js'
 // import './contextUserChangesService.js'
 
+// register Snowflake services (temporarily disabled for launch)
+// import '../common/snowflake/snowflakeClient.js'
+// import '../common/snowflake/snowflakeToolsService.js'
+
 // settings pane
 import './voidSettingsPane.js'
 

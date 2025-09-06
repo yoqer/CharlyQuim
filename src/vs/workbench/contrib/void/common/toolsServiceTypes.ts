@@ -60,6 +60,14 @@ export type BuiltinToolCallParams = {
 	'open_persistent_terminal': { cwd: string | null },
 	'run_persistent_command': { command: string; persistentTerminalId: string },
 	'kill_persistent_terminal': { persistentTerminalId: string },
+	// Snowflake tools (temporarily disabled)
+	// 'snowflake_list_procedures': {},
+	// 'snowflake_list_views': {},
+	// 'snowflake_get_table_schema': { tableName: string },
+	// 'snowflake_extract_queries': {},
+	// 'snowflake_test_connection': {},
+	// 'snowflake_execute_query': { query: string },
+	// 'snowflake_analyze_sql': { sql: string },
 }
 
 // RESULT OF TOOL CALL
@@ -81,6 +89,14 @@ export type BuiltinToolResultType = {
 	'run_persistent_command': { result: string; resolveReason: TerminalResolveReason; },
 	'open_persistent_terminal': { persistentTerminalId: string },
 	'kill_persistent_terminal': {},
+	// Snowflake tools (temporarily disabled)
+	// 'snowflake_list_procedures': { procedures: Array<{ name: string, definition: string, created: string, lastAltered: string }> },
+	// 'snowflake_list_views': { views: Array<{ name: string, definition: string, created: string, lastAltered: string }> },
+	// 'snowflake_get_table_schema': { columns: Array<{ name: string, type: string, nullable: boolean, description?: string }> },
+	// 'snowflake_extract_queries': { queries: Array<{ source: string, source_type: string, query: string, tables_referenced: string[], query_type: string }> },
+	// 'snowflake_test_connection': { success: boolean, message: string },
+	// 'snowflake_execute_query': { results: any[], rowCount: number },
+	// 'snowflake_analyze_sql': { issues: Array<{ type: string, message: string, line?: number }>, suggestions: string[], complexity: string },
 }
 
 

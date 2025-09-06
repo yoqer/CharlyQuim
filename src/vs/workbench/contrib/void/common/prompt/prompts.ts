@@ -336,7 +336,57 @@ export const builtinTools: {
 		name: 'kill_persistent_terminal',
 		description: `Interrupts and closes a persistent terminal that you opened with open_persistent_terminal.`,
 		params: { persistent_terminal_id: { description: `The ID of the persistent terminal.` } }
-	}
+	},
+
+	// --- Snowflake SQL tools (temporarily disabled) ---
+	
+	// snowflake_list_procedures: {
+	// 	name: 'snowflake_list_procedures',
+	// 	description: `Lists all stored procedures in the configured Snowflake schema. Useful for discovering SQL scripts to analyze and debug.`,
+	// 	params: {}
+	// },
+
+	// snowflake_list_views: {
+	// 	name: 'snowflake_list_views',
+	// 	description: `Lists all views in the configured Snowflake schema. Useful for discovering SQL scripts to analyze and debug.`,
+	// 	params: {}
+	// },
+
+	// snowflake_get_table_schema: {
+	// 	name: 'snowflake_get_table_schema',
+	// 	description: `Gets the schema (columns, types, etc.) for a specific Snowflake table. Useful for understanding table structure when debugging SQL.`,
+	// 	params: { 
+	// 		table_name: { description: `The name of the table to get schema information for.` }
+	// 	}
+	// },
+
+	// snowflake_extract_queries: {
+	// 	name: 'snowflake_extract_queries',
+	// 	description: `Extracts all SQL queries from stored procedures and views in the Snowflake schema. Returns formatted SQL code ready for analysis.`,
+	// 	params: {}
+	// },
+
+	// snowflake_test_connection: {
+	// 	name: 'snowflake_test_connection',
+	// 	description: `Tests the connection to Snowflake using the configured credentials. Use this to verify setup before running other Snowflake tools.`,
+	// 	params: {}
+	// },
+
+	// snowflake_execute_query: {
+	// 	name: 'snowflake_execute_query',
+	// 	description: `Executes a SQL query against Snowflake and returns the results. Use with caution - only for testing and debugging queries.`,
+	// 	params: { 
+	// 		query: { description: `The SQL query to execute.` }
+	// 	}
+	// },
+
+	// snowflake_analyze_sql: {
+	// 	name: 'snowflake_analyze_sql',
+	// 	description: `Analyzes SQL code for potential issues, performance problems, and provides suggestions for improvement. Great for debugging SQL scripts.`,
+	// 	params: { 
+	// 		sql: { description: `The SQL code to analyze.` }
+	// 	}
+	// }
 
 
 	// go_to_definition

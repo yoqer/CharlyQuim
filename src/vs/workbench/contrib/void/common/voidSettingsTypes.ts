@@ -438,6 +438,17 @@ export const isFeatureNameDisabled = (featureName: FeatureName, settingsState: V
 export type ChatMode = 'agent' | 'gather' | 'normal'
 
 
+export type SnowflakeSettings = {
+	account: string;
+	user: string;
+	password: string;
+	warehouse: string;
+	database: string;
+	schema: string;
+	private_key_path?: string;
+	passphrase?: string;
+}
+
 export type GlobalSettings = {
 	autoRefreshModels: boolean;
 	aiInstructions: string;
@@ -452,6 +463,7 @@ export type GlobalSettings = {
 	isOnboardingComplete: boolean;
 	disableSystemMessage: boolean;
 	autoAcceptLLMChanges: boolean;
+	snowflakeSettings: SnowflakeSettings;
 }
 
 export const defaultGlobalSettings: GlobalSettings = {
@@ -468,6 +480,14 @@ export const defaultGlobalSettings: GlobalSettings = {
 	isOnboardingComplete: false,
 	disableSystemMessage: false,
 	autoAcceptLLMChanges: false,
+	snowflakeSettings: {
+		account: '',
+		user: '',
+		password: '',
+		warehouse: '',
+		database: '',
+		schema: ''
+	},
 }
 
 export type GlobalSettingName = keyof GlobalSettings

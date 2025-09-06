@@ -1466,6 +1466,105 @@ export const Settings = () => {
 									</ErrorBoundary>
 								</div>
 
+								{/* Snowflake Configuration section */}
+								<div>
+									<h2 className='text-3xl mb-2'>Snowflake Configuration</h2>
+									<h4 className='text-void-fg-3 mb-4'>Configure your Snowflake connection for SQL script analysis and debugging.</h4>
+
+									<ErrorBoundary>
+										<div className='flex flex-col gap-4 max-w-md'>
+											<VoidInputBox2
+												placeholder="Account (e.g., rklladf-jc29760)"
+												value={settingsState.globalSettings.snowflakeSettings?.account || ''}
+												onChange={(value) => {
+													voidSettingsService.setGlobalSetting('snowflakeSettings', {
+														...settingsState.globalSettings.snowflakeSettings,
+														account: value
+													});
+												}}
+												label="Account"
+											/>
+											<VoidInputBox2
+												placeholder="Username"
+												value={settingsState.globalSettings.snowflakeSettings?.user || ''}
+												onChange={(value) => {
+													voidSettingsService.setGlobalSetting('snowflakeSettings', {
+														...settingsState.globalSettings.snowflakeSettings,
+														user: value
+													});
+												}}
+												label="User"
+											/>
+											<VoidInputBox2
+												placeholder="Password"
+												value={settingsState.globalSettings.snowflakeSettings?.password || ''}
+												onChange={(value) => {
+													voidSettingsService.setGlobalSetting('snowflakeSettings', {
+														...settingsState.globalSettings.snowflakeSettings,
+														password: value
+													});
+												}}
+												label="Password"
+												isPassword={true}
+											/>
+											<VoidInputBox2
+												placeholder="Warehouse (e.g., COMPUTE_WH)"
+												value={settingsState.globalSettings.snowflakeSettings?.warehouse || ''}
+												onChange={(value) => {
+													voidSettingsService.setGlobalSetting('snowflakeSettings', {
+														...settingsState.globalSettings.snowflakeSettings,
+														warehouse: value
+													});
+												}}
+												label="Warehouse"
+											/>
+											<VoidInputBox2
+												placeholder="Database (e.g., PC_DBT_DB)"
+												value={settingsState.globalSettings.snowflakeSettings?.database || ''}
+												onChange={(value) => {
+													voidSettingsService.setGlobalSetting('snowflakeSettings', {
+														...settingsState.globalSettings.snowflakeSettings,
+														database: value
+													});
+												}}
+												label="Database"
+											/>
+											<VoidInputBox2
+												placeholder="Schema (e.g., DBT_DPACHECO)"
+												value={settingsState.globalSettings.snowflakeSettings?.schema || ''}
+												onChange={(value) => {
+													voidSettingsService.setGlobalSetting('snowflakeSettings', {
+														...settingsState.globalSettings.snowflakeSettings,
+														schema: value
+													});
+												}}
+												label="Schema"
+											/>
+											<div className='mt-2'>
+												<VoidButtonBgDarken 
+													className='px-4 py-2'
+													onClick={async () => {
+														try {
+															// Test connection using the Snowflake tools service
+															const result = await accessor.get('ISnowflakeToolsService').callTool.snowflake_test_connection({});
+															if (result.result.success) {
+																// Show success message
+																console.log('Snowflake connection successful!');
+															} else {
+																console.error('Snowflake connection failed:', result.result.message);
+															}
+														} catch (error) {
+															console.error('Error testing Snowflake connection:', error);
+														}
+													}}
+												>
+													Test Connection
+												</VoidButtonBgDarken>
+											</div>
+										</div>
+									</ErrorBoundary>
+								</div>
+
 
 								{/* Metrics section */}
 								<div className='max-w-[600px]'>

@@ -19,6 +19,7 @@ import { RawToolParamsObj } from '../common/sendLLMMessageTypes.js'
 import { MAX_CHILDREN_URIs_PAGE, MAX_FILE_CHARS_PAGE, MAX_TERMINAL_BG_COMMAND_TIME, MAX_TERMINAL_INACTIVE_TIME } from '../common/prompt/prompts.js'
 import { IVoidSettingsService } from '../common/voidSettingsService.js'
 import { generateUuid } from '../../../../base/common/uuid.js'
+// import { ISnowflakeToolsService } from '../common/snowflake/snowflakeToolsService.js'
 
 
 // tool use for AI
@@ -153,6 +154,7 @@ export class ToolsService implements IToolsService {
 		@IDirectoryStrService private readonly directoryStrService: IDirectoryStrService,
 		@IMarkerService private readonly markerService: IMarkerService,
 		@IVoidSettingsService private readonly voidSettingsService: IVoidSettingsService,
+		// @ISnowflakeToolsService private readonly snowflakeToolsService: ISnowflakeToolsService,
 	) {
 		const queryBuilder = instantiationService.createInstance(QueryBuilder);
 
@@ -289,6 +291,24 @@ export class ToolsService implements IToolsService {
 				const persistentTerminalId = validateProposedTerminalId(terminalIdUnknown);
 				return { persistentTerminalId };
 			},
+			
+			// Snowflake tools (temporarily disabled)
+			// snowflake_list_procedures: () => ({}),
+			// snowflake_list_views: () => ({}),
+			// snowflake_get_table_schema: (params: RawToolParamsObj) => {
+			// 	const tableName = validateStr('table_name', params.table_name);
+			// 	return { tableName };
+			// },
+			// snowflake_extract_queries: () => ({}),
+			// snowflake_test_connection: () => ({}),
+			// snowflake_execute_query: (params: RawToolParamsObj) => {
+			// 	const query = validateStr('query', params.query);
+			// 	return { query };
+			// },
+			// snowflake_analyze_sql: (params: RawToolParamsObj) => {
+			// 	const sql = validateStr('sql', params.sql);
+			// 	return { sql };
+			// },
 
 		}
 
@@ -461,6 +481,42 @@ export class ToolsService implements IToolsService {
 				await this.terminalToolService.killPersistentTerminal(persistentTerminalId)
 				return { result: {} }
 			},
+			
+			// Snowflake tools
+			snowflake_list_procedures: async () => {
+				const result = await this.snowflakeToolsService.callTool.snowflake_list_procedures({});
+				return { result: result.result };
+			},
+			snowflake_list_views: async () => {
+				const result = await this.snowflakeToolsService.callTool.snowflake_list_views({});
+				return { result: result.result };
+			},
+			snowflake_get_table_schema: async ({ tableName }) => {
+				const result = await this.snowflakeToolsService.callTool.snowflake_get_table_schema({ tableName });
+				return { result: result.result };
+			},
+			snowflake_extract_queries: async () => {
+				const result = await this.snowflakeToolsService.callTool.snowflake_extract_queries({});
+				return { result: { queries: result.result.queries.map(q => ({ ...q, source_type: q.source_type as 'stored_procedure' | 'view' })) } };
+			},
+			snowflake_test_connection: async () => {
+				const result = await this.snowflakeToolsService.callTool.snowflake_test_connection({});
+				return { result: result.result };
+			},
+			snowflake_execute_query: async ({ query }) => {
+				const result = await this.snowflakeToolsService.callTool.snowflake_execute_query({ query });
+				return { result: result.result };
+			},
+			snowflake_analyze_sql: async ({ sql }) => {
+				const result = await this.snowflakeToolsService.callTool.snowflake_analyze_sql({ sql });
+				return { 
+					result: { 
+						...result.result,
+						issues: result.result.issues.map(i => ({ ...i, type: i.type as 'error' | 'warning' | 'suggestion' })),
+						complexity: result.result.complexity as 'low' | 'medium' | 'high'
+					} 
+				};
+			},
 		}
 
 
@@ -563,6 +619,29 @@ export class ToolsService implements IToolsService {
 			},
 			kill_persistent_terminal: (params, _result) => {
 				return `Successfully closed terminal "${params.persistentTerminalId}".`;
+			},
+			
+			// Snowflake tools
+			snowflake_list_procedures: (params, result) => {
+				return this.snowflakeToolsService.stringOfResult.snowflake_list_procedures(params, result);
+			},
+			snowflake_list_views: (params, result) => {
+				return this.snowflakeToolsService.stringOfResult.snowflake_list_views(params, result);
+			},
+			snowflake_get_table_schema: (params, result) => {
+				return this.snowflakeToolsService.stringOfResult.snowflake_get_table_schema(params, result);
+			},
+			snowflake_extract_queries: (params, result) => {
+				return this.snowflakeToolsService.stringOfResult.snowflake_extract_queries(params, result);
+			},
+			snowflake_test_connection: (params, result) => {
+				return this.snowflakeToolsService.stringOfResult.snowflake_test_connection(params, result);
+			},
+			snowflake_execute_query: (params, result) => {
+				return this.snowflakeToolsService.stringOfResult.snowflake_execute_query(params, result);
+			},
+			snowflake_analyze_sql: (params, result) => {
+				return this.snowflakeToolsService.stringOfResult.snowflake_analyze_sql(params, result);
 			},
 		}
 
