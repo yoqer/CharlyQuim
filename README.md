@@ -1,40 +1,39 @@
-# Welcome to Void.
+# Welcome to CorteXIDE
 
 <div align="center">
 	<img
-		src="./src/vs/workbench/browser/parts/editor/media/slice_of_void.png"
-	 	alt="Void Welcome"
+		src="./resources/branding/icon.svg"
+	 	alt="CorteXIDE Logo"
 		width="300"
 	 	height="300"
 	/>
 </div>
 
-Void is the open-source Cursor alternative.
+**Open-source, self-hosted AI IDE — inspired by Cursor, forked from Void — focused on privacy and local control.**
 
-Use AI agents on your codebase, checkpoint and visualize changes, and bring any model or host locally. Void sends messages directly to providers without retaining your data.
+CorteXIDE is an open-source, privacy-first AI IDE — a self-hosted alternative to Cursor, forked from Void IDE, rebuilt for reliability, transparency, and full local control. Chat → Plan → Diff → Apply — locally, securely, and open-source.
 
-This repo contains the full sourcecode for Void. If you're new, welcome!
+Use AI agents on your codebase, checkpoint and visualize changes, and bring any model or host locally. CorteXIDE sends messages directly to providers without retaining your data.
 
-- 🧭 [Website](https://voideditor.com)
+**Local-only by default; no telemetry; no outbound requests. See `.cortexide/audit/log.jsonl`.**
 
-- 👋 [Discord](https://discord.gg/RSNjgaugJs)
+## Quick Start
 
-- 🚙 [Project Board](https://github.com/orgs/voideditor/projects/2)
-
+```bash
+npm ci && ./scripts/code.sh --user-data-dir ./.tmp/user-data --extensions-dir ./.tmp/extensions
+```
 
 ## Contributing
 
-1. To get started working on Void, check out our Project Board! You can also see [HOW_TO_CONTRIBUTE](https://github.com/voideditor/void/blob/main/HOW_TO_CONTRIBUTE.md).
+1. See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and guidelines.
 
-2. Feel free to attend a casual weekly meeting in our Discord channel!
-
+2. Check out our [Project Board](https://github.com/orgs/cortexide/projects/2) for current tasks.
 
 ## Reference
 
-Void is a fork of the [vscode](https://github.com/microsoft/vscode) repository. For a guide to the codebase, see [VOID_CODEBASE_GUIDE](https://github.com/voideditor/void/blob/main/VOID_CODEBASE_GUIDE.md).
-
-## Note
-Work is temporarily paused on the Void IDE (this repo) while we experiment with a few novel AI coding ideas for Void. Stay alerted with new releases in our Discord channel.
+CorteXIDE is a fork of the [vscode](https://github.com/microsoft/vscode) repository and [Void IDE](https://github.com/voideditor/void). For a guide to the codebase, see [VOID_CODEBASE_GUIDE](VOID_CODEBASE_GUIDE.md).
 
 ## Support
-You can always reach us in our Discord server or contact us via email: hello@voideditor.com.
+- 🧭 [Website](https://cortexide.com)
+- 👋 [Discord](https://discord.gg/cortexide)
+- 📧 Email: hello@cortexide.com

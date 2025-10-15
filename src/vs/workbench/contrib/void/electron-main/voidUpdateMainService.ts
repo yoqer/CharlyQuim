@@ -95,7 +95,12 @@ export class VoidMainUpdateService extends Disposable implements IVoidUpdateServ
 
 	private async _manualCheckGHTagIfDisabled(explicit: boolean): Promise<VoidCheckUpdateRespose> {
 		try {
-			const response = await fetch('https://api.github.com/repos/voideditor/binaries/releases/latest');
+			// Disable outbound update checks by default; allow opt-in via env var
+			const UPDATES_ENABLED = process.env.CORTEXIDE_ENABLE_UPDATES === 'true'
+			if (!UPDATES_ENABLED) {
+				return { message: explicit ? 'Updates disabled by default.' : null } as const
+			}
+			const response = await fetch(process.env.CORTEXIDE_UPDATES_URL ?? 'https://api.github.com/repos/voideditor/binaries/releases/latest');
 
 			const data = await response.json();
 			const version = data.tag_name;

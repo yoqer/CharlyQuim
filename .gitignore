@@ -22,9 +22,12 @@ product.overrides.json
 *.snap.actual
 .vscode-test
 
-# Void added these:
+# CorteXIDE specific:
 .tmp/
 .tmp2/
 .tool-versions
 src/vs/workbench/contrib/void/browser/react/out/**
 src/vs/workbench/contrib/void/browser/react/src2/**
+.cortexide/
+dist/
+*.log

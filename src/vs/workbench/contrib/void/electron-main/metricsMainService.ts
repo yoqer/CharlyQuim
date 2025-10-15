@@ -12,7 +12,12 @@ import { StorageTarget, StorageScope } from '../../../../platform/storage/common
 import { IApplicationStorageMainService } from '../../../../platform/storage/electron-main/storageMainService.js';
 
 import { IMetricsService } from '../common/metricsService.js';
-import { PostHog } from 'posthog-node'
+// Telemetry is disabled by default. Only enable when explicitly opted-in via env.
+const TELEMETRY_ENABLED = process.env.CORTEXIDE_ENABLE_TELEMETRY === 'true'
+type PostHogLike = { shutdown?: () => Promise<void>; capture: (...args: any[]) => void; identify: (...args: any[]) => void; optOut?: () => void; optIn?: () => void }
+// Lazy require to avoid bundling/initializing when disabled
+let PostHog: any = null
+try { PostHog = TELEMETRY_ENABLED ? require('posthog-node').PostHog : null } catch { PostHog = null }
 import { OPT_OUT_KEY } from '../common/storageKeys.js';
 
 
@@ -35,7 +40,7 @@ const osInfo = _getOSInfo()
 export class MetricsMainService extends Disposable implements IMetricsService {
 	_serviceBrand: undefined;
 
-	private readonly client: PostHog
+	private readonly client: PostHogLike
 
 	private _initProperties: object = {}
 
@@ -88,9 +93,11 @@ export class MetricsMainService extends Disposable implements IMetricsService {
 		@IApplicationStorageMainService private readonly _appStorage: IApplicationStorageMainService,
 	) {
 		super()
-		this.client = new PostHog('phc_UanIdujHiLp55BkUTjB1AuBXcasVkdqRwgnwRlWESH2', {
-			host: 'https://us.i.posthog.com',
-		})
+		// Create a no-op client unless telemetry is explicitly enabled
+		const noop: PostHogLike = { capture: () => { }, identify: () => { }, optOut: () => { }, optIn: () => { }, shutdown: async () => { } }
+		this.client = TELEMETRY_ENABLED && PostHog
+			? new PostHog(process.env.CORTEXIDE_POSTHOG_KEY, { host: process.env.CORTEXIDE_POSTHOG_HOST })
+			: noop
 
 		this.initialize() // async
 	}
@@ -124,18 +131,15 @@ export class MetricsMainService extends Disposable implements IMetricsService {
 		}
 
 		const didOptOut = this._appStorage.getBoolean(OPT_OUT_KEY, StorageScope.APPLICATION, false)
-
-		console.log('User is opted out of basic Void metrics?', didOptOut)
-		if (didOptOut) {
-			this.client.optOut()
+		if (TELEMETRY_ENABLED && (this.client as any).optIn && (this.client as any).optOut) {
+			if (didOptOut) {
+				(this.client as any).optOut()
+			}
+			else {
+				(this.client as any).optIn()
+				this.client.identify(identifyMessage)
+			}
 		}
-		else {
-			this.client.optIn()
-			this.client.identify(identifyMessage)
-		}
-
-
-		console.log('Void posthog metrics info:', JSON.stringify(identifyMessage, null, 2))
 	}
 
 
