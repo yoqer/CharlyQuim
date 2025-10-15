@@ -11,9 +11,7 @@ import { IEditCodeService } from './editCodeServiceInterface.js';
 import { SafeApplyIntegration } from './safeApplyIntegration.js';
 import { registerSafeApplyCommands } from './safeApplyCommands.js';
 import { ILogService } from '../../../../platform/log/common/log.js';
-import { IWorkbenchContribution } from '../../../../workbench/common/contributions.js';
-import { registerWorkbenchContribution2 } from '../../../../platform/instantiation/common/extensions.js';
-import { WorkbenchPhase } from '../../../../workbench/common/contributions.js';
+import { IWorkbenchContribution, registerWorkbenchContribution2, WorkbenchPhase } from '../../../common/contributions.js';
 
 export class SafeApplyContribution extends Disposable implements IWorkbenchContribution {
 	static readonly ID = 'workbench.contrib.safeApply';
