@@ -4,6 +4,8 @@
  *--------------------------------------------------------------------------------------------*/
 
 import { Registry } from '../../../../platform/registry/common/platform.js';
+// Telemetry disabled by default unless explicitly enabled via env
+const TELEMETRY_ENABLED = (globalThis as any).process?.env?.CORTEXIDE_ENABLE_TELEMETRY === 'true';
 import { Extensions as WorkbenchExtensions, IWorkbenchContributionsRegistry, IWorkbenchContribution } from '../../../common/contributions.js';
 import { LifecyclePhase, ILifecycleService, StartupKind } from '../../../services/lifecycle/common/lifecycle.js';
 import { ITelemetryService } from '../../../../platform/telemetry/common/telemetry.js';
@@ -77,6 +79,10 @@ export class TelemetryContribution extends Disposable implements IWorkbenchContr
 		@ITextFileService textFileService: ITextFileService
 	) {
 		super();
+
+		if (!TELEMETRY_ENABLED) {
+			return; // short-circuit: do not register any telemetry when disabled
+		}
 
 		const { filesToOpenOrCreate, filesToDiff, filesToMerge } = environmentService;
 		const activeViewlet = paneCompositeService.getActivePaneComposite(ViewContainerLocation.Sidebar);
@@ -293,6 +299,9 @@ class ConfigurationTelemetryContribution extends Disposable implements IWorkbenc
 		@ITelemetryService private readonly telemetryService: ITelemetryService,
 	) {
 		super();
+		if (!TELEMETRY_ENABLED) {
+			return; // short-circuit when telemetry disabled
+		}
 
 		const { user, workspace } = configurationService.keys();
 		for (const setting of user) {

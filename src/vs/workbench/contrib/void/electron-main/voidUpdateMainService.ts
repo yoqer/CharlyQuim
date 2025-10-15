@@ -79,7 +79,7 @@ export class VoidMainUpdateService extends Disposable implements IVoidUpdateServ
 
 		if (this._updateService.state.type === StateType.Ready) {
 			// Update is ready
-			return { message: 'Restart Void to update!', action: 'restart' } as const
+			return { message: 'Restart CorteXIDE to update!', action: 'restart' } as const
 		}
 
 		if (this._updateService.state.type === StateType.Disabled) {
@@ -95,7 +95,12 @@ export class VoidMainUpdateService extends Disposable implements IVoidUpdateServ
 
 	private async _manualCheckGHTagIfDisabled(explicit: boolean): Promise<VoidCheckUpdateRespose> {
 		try {
-			const response = await fetch('https://api.github.com/repos/voideditor/binaries/releases/latest');
+			// Disable outbound update checks by default; allow opt-in via env var
+			const UPDATES_ENABLED = process.env.CORTEXIDE_ENABLE_UPDATES === 'true'
+			if (!UPDATES_ENABLED) {
+				return { message: explicit ? 'Updates disabled by default.' : null } as const
+			}
+			const response = await fetch(process.env.CORTEXIDE_UPDATES_URL ?? 'https://api.github.com/repos/cortexide/cortexide/releases/latest');
 
 			const data = await response.json();
 			const version = data.tag_name;
@@ -112,11 +117,11 @@ export class VoidMainUpdateService extends Disposable implements IVoidUpdateServ
 			if (explicit) {
 				if (response.ok) {
 					if (!isUpToDate) {
-						message = 'A new version of Void is available! Please reinstall (auto-updates are disabled on this OS) - it only takes a second!'
+						message = 'A new version of CorteXIDE is available! Please reinstall (auto-updates are disabled on this OS) - it only takes a second!'
 						action = 'reinstall'
 					}
 					else {
-						message = 'Void is up-to-date!'
+						message = 'CorteXIDE is up-to-date!'
 					}
 				}
 				else {
@@ -127,7 +132,7 @@ export class VoidMainUpdateService extends Disposable implements IVoidUpdateServ
 			// not explicit
 			else {
 				if (response.ok && !isUpToDate) {
-					message = 'A new version of Void is available! Please reinstall (auto-updates are disabled on this OS) - it only takes a second!'
+					message = 'A new version of CorteXIDE is available! Please reinstall (auto-updates are disabled on this OS) - it only takes a second!'
 					action = 'reinstall'
 				}
 				else {

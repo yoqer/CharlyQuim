@@ -22,6 +22,10 @@ export class OnboardingContribution extends Disposable implements IWorkbenchCont
 	}
 
 	private initialize(): void {
+		// Temporarily disabled to fix blank screen issue
+		console.log('OnboardingContribution: Skipping initialization to fix blank screen');
+		return;
+
 		// Get the active window reference for multi-window support
 		const targetWindow = getActiveWindow();
 
