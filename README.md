@@ -2,7 +2,7 @@
 
 <div align="center">
 	<img
-		src="./resources/branding/icon.svg"
+		src="./resources/branding/icon.png"
 	 	alt="CorteXIDE Logo"
 		width="300"
 	 	height="300"
