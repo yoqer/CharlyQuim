@@ -1,0 +1,50 @@
+name: Deploy Website
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'cortexide-website/**'
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: cortexide-website/package-lock.json
+
+    - name: Install dependencies
+      run: |
+        cd cortexide-website
+        npm ci
+
+    - name: Build website
+      run: |
+        cd cortexide-website
+        npm run build
+
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v3
+      if: github.ref == 'refs/heads/main'
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./cortexide-website/out
+        cname: cortexide.com
+
+    - name: Deploy to Vercel (if configured)
+      if: github.ref == 'refs/heads/main' && secrets.VERCEL_TOKEN
+      run: |
+        cd cortexide-website
+        npx vercel --prod --token ${{ secrets.VERCEL_TOKEN }}

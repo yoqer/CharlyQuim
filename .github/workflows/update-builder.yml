@@ -1,0 +1,54 @@
+name: Update Builder Repository
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'cortexide-builder/**'
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  update-builder:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout main repository
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Checkout builder repository
+      uses: actions/checkout@v4
+      with:
+        repository: OpenCortexIDE/cortexide-builder
+        token: ${{ secrets.GITHUB_TOKEN }}
+        path: builder-repo
+
+    - name: Sync builder files
+      run: |
+        # Copy updated files from main repo to builder repo
+        cp -r cortexide-builder/* builder-repo/
+        
+        # Update builder repo
+        cd builder-repo
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        
+        # Check if there are changes
+        if git diff --quiet; then
+          echo "No changes to sync"
+        else
+          git add .
+          git commit -m "Sync builder files from main repository
+
+          Automated sync from OpenCortexIDE/cortexide@${{ github.sha }}"
+          git push
+        fi
+
+    - name: Create PR if needed
+      if: failure()
+      run: |
+        echo "Failed to sync builder repository. Manual intervention may be required."

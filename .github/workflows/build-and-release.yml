@@ -1,0 +1,263 @@
+name: Build and Release CorteXIDE
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # Trigger on version tags like v0.1.0, v0.2.0, etc.
+  workflow_dispatch:  # Allow manual triggering
+    inputs:
+      version:
+        description: 'Version to build (e.g., v0.1.0)'
+        required: true
+        default: 'v0.1.0'
+
+env:
+  NODE_VERSION: '20'
+  CORTEXIDE_VERSION: ${{ github.ref_name }}
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        arch: [arm64, x64]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        fetch-depth: 0
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+
+    - name: Setup Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: latest-stable
+
+    - name: Install dependencies
+      run: |
+        cd cortexide-builder
+        npm install
+
+    - name: Build CorteXIDE for macOS ${{ matrix.arch }}
+      run: |
+        cd cortexide-builder
+        SHOULD_BUILD="yes" OS_NAME="osx" VSCODE_QUALITY="stable" VSCODE_ARCH="${{ matrix.arch }}" ./build.sh
+      env:
+        NODE_OPTIONS: "--max-old-space-size=8192"
+
+    - name: Create DMG
+      run: |
+        cd cortexide-builder
+        hdiutil create -volname "CorteXIDE" -srcfolder VSCode-darwin-${{ matrix.arch }}/CorteXIDE.app -ov -format UDZO CorteXIDE-${{ env.CORTEXIDE_VERSION }}-${{ matrix.arch }}.dmg
+
+    - name: Upload macOS artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: cortexide-macos-${{ matrix.arch }}
+        path: cortexide-builder/CorteXIDE-${{ env.CORTEXIDE_VERSION }}-${{ matrix.arch }}.dmg
+
+  build-windows:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        arch: [x64, arm64]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        fetch-depth: 0
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: |
+        cd cortexide-builder
+        npm install
+
+    - name: Build CorteXIDE for Windows ${{ matrix.arch }}
+      run: |
+        cd cortexide-builder
+        SHOULD_BUILD="yes" OS_NAME="windows" VSCODE_QUALITY="stable" VSCODE_ARCH="${{ matrix.arch }}" ./build.sh
+      env:
+        NODE_OPTIONS: "--max-old-space-size=8192"
+
+    - name: Upload Windows artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: cortexide-windows-${{ matrix.arch }}
+        path: cortexide-builder/CorteXIDESetup-${{ matrix.arch }}-${{ env.CORTEXIDE_VERSION }}.exe
+
+  build-linux:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: [x64, arm64]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        fetch-depth: 0
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: |
+        cd cortexide-builder
+        npm install
+
+    - name: Build CorteXIDE for Linux ${{ matrix.arch }}
+      run: |
+        cd cortexide-builder
+        SHOULD_BUILD="yes" OS_NAME="linux" VSCODE_QUALITY="stable" VSCODE_ARCH="${{ matrix.arch }}" ./build.sh
+      env:
+        NODE_OPTIONS: "--max-old-space-size=8192"
+
+    - name: Upload Linux artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: cortexide-linux-${{ matrix.arch }}
+        path: |
+          cortexide-builder/CorteXIDE-${{ env.CORTEXIDE_VERSION }}.deb
+          cortexide-builder/CorteXIDE-${{ env.CORTEXIDE_VERSION }}.rpm
+          cortexide-builder/CorteXIDE-${{ env.CORTEXIDE_VERSION }}.AppImage
+
+  create-release:
+    needs: [build-macos, build-windows, build-linux]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: ./artifacts
+
+    - name: Generate release notes
+      id: release_notes
+      run: |
+        cat > release_notes.md << 'EOF'
+        ## 🎉 CorteXIDE ${{ env.CORTEXIDE_VERSION }} Release
+
+        ### What's New
+        - **Automated build** with GitHub Actions
+        - **Multi-platform support** - macOS, Windows, and Linux
+        - **Multiple architectures** - ARM64 and x64
+        - **Complete AI IDE** with chat, apply, and autocomplete features
+        - **Privacy-first** - no telemetry, local-only by default
+
+        ### Downloads
+
+        #### macOS
+        - **Apple Silicon (ARM64)**: [CorteXIDE-${{ env.CORTEXIDE_VERSION }}-arm64.dmg](https://github.com/OpenCortexIDE/cortexide/releases/download/${{ env.CORTEXIDE_VERSION }}/CorteXIDE-${{ env.CORTEXIDE_VERSION }}-arm64.dmg)
+        - **Intel (x64)**: [CorteXIDE-${{ env.CORTEXIDE_VERSION }}-x64.dmg](https://github.com/OpenCortexIDE/cortexide/releases/download/${{ env.CORTEXIDE_VERSION }}/CorteXIDE-${{ env.CORTEXIDE_VERSION }}-x64.dmg)
+
+        #### Windows
+        - **x64**: [CorteXIDESetup-x64-${{ env.CORTEXIDE_VERSION }}.exe](https://github.com/OpenCortexIDE/cortexide/releases/download/${{ env.CORTEXIDE_VERSION }}/CorteXIDESetup-x64-${{ env.CORTEXIDE_VERSION }}.exe)
+        - **ARM64**: [CorteXIDESetup-arm64-${{ env.CORTEXIDE_VERSION }}.exe](https://github.com/OpenCortexIDE/cortexide/releases/download/${{ env.CORTEXIDE_VERSION }}/CorteXIDESetup-arm64-${{ env.CORTEXIDE_VERSION }}.exe)
+
+        #### Linux
+        - **x64 DEB**: [CorteXIDE-${{ env.CORTEXIDE_VERSION }}.deb](https://github.com/OpenCortexIDE/cortexide/releases/download/${{ env.CORTEXIDE_VERSION }}/CorteXIDE-${{ env.CORTEXIDE_VERSION }}.deb)
+        - **x64 RPM**: [CorteXIDE-${{ env.CORTEXIDE_VERSION }}.rpm](https://github.com/OpenCortexIDE/cortexide/releases/download/${{ env.CORTEXIDE_VERSION }}/CorteXIDE-${{ env.CORTEXIDE_VERSION }}.rpm)
+        - **x64 AppImage**: [CorteXIDE-${{ env.CORTEXIDE_VERSION }}.AppImage](https://github.com/OpenCortexIDE/cortexide/releases/download/${{ env.CORTEXIDE_VERSION }}/CorteXIDE-${{ env.CORTEXIDE_VERSION }}.AppImage)
+        - **ARM64 DEB**: [CorteXIDE-${{ env.CORTEXIDE_VERSION }}-arm64.deb](https://github.com/OpenCortexIDE/cortexide/releases/download/${{ env.CORTEXIDE_VERSION }}/CorteXIDE-${{ env.CORTEXIDE_VERSION }}-arm64.deb)
+
+        ### Installation Instructions
+
+        #### macOS
+        1. Download the appropriate DMG for your Mac (ARM64 for Apple Silicon, x64 for Intel)
+        2. Open the DMG file
+        3. Drag CorteXIDE to your Applications folder
+        4. Launch from Applications
+
+        #### Windows
+        1. Download the appropriate EXE for your system
+        2. Run the installer
+        3. Follow the installation wizard
+        4. Launch from Start Menu
+
+        #### Linux
+        1. **DEB (Ubuntu/Debian)**: `sudo dpkg -i CorteXIDE-${{ env.CORTEXIDE_VERSION }}.deb`
+        2. **RPM (Fedora/RHEL)**: `sudo rpm -i CorteXIDE-${{ env.CORTEXIDE_VERSION }}.rpm`
+        3. **AppImage**: `chmod +x CorteXIDE-${{ env.CORTEXIDE_VERSION }}.AppImage && ./CorteXIDE-${{ env.CORTEXIDE_VERSION }}.AppImage`
+
+        ### System Requirements
+        - **macOS**: 10.15 or later
+        - **Windows**: Windows 10 or later
+        - **Linux**: Ubuntu 18.04+, Fedora 30+, or equivalent
+        - **RAM**: 8GB minimum, 16GB recommended
+        - **Storage**: 2GB free space
+
+        ### Features
+        - 🤖 **AI Chat** - Chat with your codebase using any LLM provider
+        - ⚡ **Fast Apply** - Apply AI suggestions with one click
+        - 🎯 **Quick Edit** - Ctrl+K for instant code modifications
+        - 🔄 **Autocomplete** - AI-powered code completion
+        - 🔒 **Privacy** - All data stays local, no external requests
+        - 🎨 **Modern UI** - Clean, intuitive interface
+
+        ### Support
+        - 🌐 [Website](https://cortexide.com)
+        - 💬 [Discord](https://discord.gg/cortexide)
+        - 📧 Email: hello@cortexide.com
+        - 🐛 [Report Issues](https://github.com/OpenCortexIDE/cortexide/issues)
+
+        ---
+
+        **Note**: This release was automatically built and tested. For the latest updates and bug fixes, please check our [GitHub repository](https://github.com/OpenCortexIDE/cortexide).
+        EOF
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ env.CORTEXIDE_VERSION }}
+        name: CorteXIDE ${{ env.CORTEXIDE_VERSION }}
+        body_path: release_notes.md
+        draft: false
+        prerelease: false
+        files: |
+          artifacts/cortexide-macos-arm64/CorteXIDE-${{ env.CORTEXIDE_VERSION }}-arm64.dmg
+          artifacts/cortexide-macos-x64/CorteXIDE-${{ env.CORTEXIDE_VERSION }}-x64.dmg
+          artifacts/cortexide-windows-x64/CorteXIDESetup-x64-${{ env.CORTEXIDE_VERSION }}.exe
+          artifacts/cortexide-windows-arm64/CorteXIDESetup-arm64-${{ env.CORTEXIDE_VERSION }}.exe
+          artifacts/cortexide-linux-x64/CorteXIDE-${{ env.CORTEXIDE_VERSION }}.deb
+          artifacts/cortexide-linux-x64/CorteXIDE-${{ env.CORTEXIDE_VERSION }}.rpm
+          artifacts/cortexide-linux-x64/CorteXIDE-${{ env.CORTEXIDE_VERSION }}.AppImage
+          artifacts/cortexide-linux-arm64/CorteXIDE-${{ env.CORTEXIDE_VERSION }}-arm64.deb
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  notify:
+    needs: [create-release]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+    - name: Notify Discord
+      if: success()
+      uses: Ilshidur/action-discord@master
+      env:
+        DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+      with:
+        args: '🎉 **CorteXIDE ${{ env.CORTEXIDE_VERSION }}** has been released! Download it now: https://github.com/OpenCortexIDE/cortexide/releases/tag/${{ env.CORTEXIDE_VERSION }}'

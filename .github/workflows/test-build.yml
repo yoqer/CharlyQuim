@@ -1,0 +1,151 @@
+name: Test Build
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+  push:
+    branches: [ main, develop ]
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  test-build-macos:
+    runs-on: macos-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        fetch-depth: 0
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+
+    - name: Setup Xcode
+      uses: actions/setup-xcode@v1
+      with:
+        xcode-version: latest-stable
+
+    - name: Install dependencies
+      run: |
+        cd cortexide-builder
+        npm install
+
+    - name: Test build (compile only)
+      run: |
+        cd cortexide-builder
+        SHOULD_BUILD="yes" OS_NAME="osx" VSCODE_QUALITY="stable" VSCODE_ARCH="arm64" ./build.sh
+      env:
+        NODE_OPTIONS: "--max-old-space-size=8192"
+
+    - name: Verify build output
+      run: |
+        cd cortexide-builder
+        ls -la VSCode-darwin-arm64/CorteXIDE.app/Contents/
+        echo "✅ Build completed successfully!"
+
+  test-build-windows:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        fetch-depth: 0
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: |
+        cd cortexide-builder
+        npm install
+
+    - name: Test build (compile only)
+      run: |
+        cd cortexide-builder
+        SHOULD_BUILD="yes" OS_NAME="windows" VSCODE_QUALITY="stable" VSCODE_ARCH="x64" ./build.sh
+      env:
+        NODE_OPTIONS: "--max-old-space-size=8192"
+
+    - name: Verify build output
+      run: |
+        cd cortexide-builder
+        dir VSCode-win32-x64
+        echo "✅ Build completed successfully!"
+
+  test-build-linux:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        fetch-depth: 0
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: |
+        cd cortexide-builder
+        npm install
+
+    - name: Test build (compile only)
+      run: |
+        cd cortexide-builder
+        SHOULD_BUILD="yes" OS_NAME="linux" VSCODE_QUALITY="stable" VSCODE_ARCH="x64" ./build.sh
+      env:
+        NODE_OPTIONS: "--max-old-space-size=8192"
+
+    - name: Verify build output
+      run: |
+        cd cortexide-builder
+        ls -la VSCode-linux-x64/
+        echo "✅ Build completed successfully!"
+
+  lint-and-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: |
+        cd cortexide
+        npm ci
+
+    - name: Run linting
+      run: |
+        cd cortexide
+        npm run lint
+
+    - name: Run tests
+      run: |
+        cd cortexide
+        npm test
+
+    - name: Check TypeScript compilation
+      run: |
+        cd cortexide
+        npm run compile
