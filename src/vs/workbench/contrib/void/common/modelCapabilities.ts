@@ -969,7 +969,7 @@ const mistralModelOptions = { // https://mistral.ai/products/la-plateforme#prici
 		supportsFIM: false,
 		downloadable: { sizeGb: 73 },
 		supportsSystemMessage: 'system-role',
-		reasoningCapabilities: { supportsReasoning: true, canIOReasoning: true, canTurnOffReasoning: false, openSourceThinkTags: ['<think>', '</think>'] },
+		reasoningCapabilities: { supportsReasoning: true, canIOReasoning: true, canTurnOffReasoning: false },
 	},
 	'mistral-medium-latest': { // https://openrouter.ai/mistralai/mistral-medium-3
 		contextWindow: 131_000,
@@ -978,7 +978,7 @@ const mistralModelOptions = { // https://mistral.ai/products/la-plateforme#prici
 		supportsFIM: false,
 		downloadable: { sizeGb: 'not-known' },
 		supportsSystemMessage: 'system-role',
-		reasoningCapabilities: { supportsReasoning: true, canIOReasoning: true, canTurnOffReasoning: false, openSourceThinkTags: ['<think>', '</think>'] },
+		reasoningCapabilities: { supportsReasoning: true, canIOReasoning: true, canTurnOffReasoning: false },
 	},
 	'mistral-small-latest': { // https://openrouter.ai/mistralai/mistral-small-3-latest':
 		contextWindow: 131_000,
@@ -987,7 +987,7 @@ const mistralModelOptions = { // https://mistral.ai/products/la-plateforme#prici
 		supportsFIM: false,
 		downloadable: { sizeGb: 14 },
 		supportsSystemMessage: 'system-role',
-		reasoningCapabilities: { supportsReasoning: true, canIOReasoning: true, canTurnOffReasoning: false, openSourceThinkTags: ['<think>', '</think>'] },
+		reasoningCapabilities: { supportsReasoning: true, canIOReasoning: true, canTurnOffReasoning: false },
 	},
 	'codestral-latest': { // https://openrouter.ai/mistralai/codestral-2508
 		contextWindow: 256_000,
@@ -1005,7 +1005,7 @@ const mistralModelOptions = { // https://mistral.ai/products/la-plateforme#prici
 		supportsFIM: true,
 		downloadable: { sizeGb: 13 },
 		supportsSystemMessage: 'system-role',
-		reasoningCapabilities: { supportsReasoning: true, canIOReasoning: true, canTurnOffReasoning: false, openSourceThinkTags: ['<think>', '</think>'] },
+		reasoningCapabilities: { supportsReasoning: true, canIOReasoning: true, canTurnOffReasoning: false },
 	},
 	'magistral-small-latest': { // https://openrouter.ai/mistralai/magistral-small-2506
 		contextWindow: 40_000,
@@ -1014,7 +1014,7 @@ const mistralModelOptions = { // https://mistral.ai/products/la-plateforme#prici
 		supportsFIM: true,
 		downloadable: { sizeGb: 13 },
 		supportsSystemMessage: 'system-role',
-		reasoningCapabilities: { supportsReasoning: true, canIOReasoning: true, canTurnOffReasoning: false, openSourceThinkTags: ['<think>', '</think>'] },
+		reasoningCapabilities: { supportsReasoning: true, canIOReasoning: true, canTurnOffReasoning: false },
 	},
 	'devstral-medium-latest': { //https://openrouter.ai/mistralai/devstral-medium
 		contextWindow: 131_000,
@@ -1023,7 +1023,7 @@ const mistralModelOptions = { // https://mistral.ai/products/la-plateforme#prici
 		supportsFIM: false,
 		downloadable: { sizeGb: 14 }, //https://ollama.com/library/devstral
 		supportsSystemMessage: 'system-role',
-		reasoningCapabilities: { supportsReasoning: true, canIOReasoning: true, canTurnOffReasoning: false, openSourceThinkTags: ['<think>', '</think>'] },
+		reasoningCapabilities: { supportsReasoning: true, canIOReasoning: true, canTurnOffReasoning: false },
 	},
 	'devstral-small-latest': { //https://openrouter.ai/mistralai/devstral-small:free
 		contextWindow: 131_000,
@@ -1082,7 +1082,7 @@ const groqModelOptions = { // https://console.groq.com/docs/models, https://groq
 		downloadable: false,
 		supportsFIM: false,
 		supportsSystemMessage: 'system-role',
-		reasoningCapabilities: { supportsReasoning: true, canIOReasoning: true, canTurnOffReasoning: false, openSourceThinkTags: ['<think>', '</think>'] }, // we're using reasoning_format:parsed so really don't need to know openSourceThinkTags
+		reasoningCapabilities: { supportsReasoning: true, canIOReasoning: true, canTurnOffReasoning: false }, // we're using reasoning_format:parsed so really don't need to know openSourceThinkTags
 	},
 } as const satisfies { [s: string]: VoidStaticModelInfo }
 const groqSettings: VoidStaticProviderInfo = {
