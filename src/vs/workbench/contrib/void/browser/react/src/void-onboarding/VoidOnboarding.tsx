@@ -596,11 +596,11 @@ const VoidOnboardingContent = () => {
 		0: <OnboardingPageShell
 			content={
 				<div className='flex flex-col items-center gap-8'>
-					<div className="text-5xl font-light text-center">Welcome to Void</div>
+					<div className="text-5xl font-light text-center">Welcome</div>
 
-					{/* Slice of Void image */}
+					{/* Logo removed */}
 					<div className='max-w-md w-full h-[30vh] mx-auto flex items-center justify-center'>
-						{!isLinux && <VoidIcon />}
+						{/* Logo removed */}
 					</div>
 
 

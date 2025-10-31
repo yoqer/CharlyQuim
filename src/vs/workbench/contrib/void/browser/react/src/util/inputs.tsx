@@ -925,10 +925,12 @@ export const VoidSimpleInputBox = ({ value, onChangeValue, placeholder, classNam
 			onChange={handleChange}
 			placeholder={placeholder}
 			disabled={disabled}
-			className={`w-full resize-none bg-void-bg-1 text-void-fg-1 placeholder:text-void-fg-3 border border-void-border-2 focus:border-void-border-1
-				${compact ? 'py-1 px-2' : 'py-2 px-4 '}
-				rounded
-				${disabled ? 'opacity-50 cursor-not-allowed' : ''}
+			className={`w-full resize-none bg-void-bg-1 text-void-fg-1 placeholder:text-void-fg-3
+				border border-void-border-3 focus:border-void-border-1
+				transition-colors duration-150
+				${compact ? 'py-1.5 px-3 text-sm' : 'py-2 px-3.5'}
+				rounded-lg
+				${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:border-void-border-2'}
 				${className}`}
 			style={{
 				...passwordBlur && { WebkitTextSecurity: 'disc' },
@@ -1718,7 +1720,9 @@ export const BlockCode = ({ initValue, language, maxHeight, showScrollbars }: Bl
 
 export const VoidButtonBgDarken = ({ children, disabled, onClick, className }: { children: React.ReactNode; disabled?: boolean; onClick: () => void; className?: string }) => {
 	return <button disabled={disabled}
-		className={`px-3 py-1 bg-black/10 dark:bg-white/10 rounded-sm overflow-hidden whitespace-nowrap flex items-center justify-center ${className || ''}`}
+		className={`px-3.5 py-1.5 bg-black/8 dark:bg-white/8 rounded-lg overflow-hidden whitespace-nowrap flex items-center justify-center
+			transition-all duration-150 hover:bg-black/12 dark:hover:bg-white/12
+			disabled:opacity-50 disabled:cursor-not-allowed ${className || ''}`}
 		onClick={onClick}
 	>{children}</button>
 }

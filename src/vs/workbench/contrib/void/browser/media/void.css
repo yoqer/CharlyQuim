@@ -24,74 +24,84 @@
 }
 
 
-/* Renamed from void-watermark-button to void-openfolder-button */
+/* Cursor-style button - renamed from void-watermark-button to void-openfolder-button */
 .void-openfolder-button {
-    padding: 8px 20px;
-    background-color: #306dce;
+    padding: 10px 24px;
+    background-color: #0066FF;
     color: white;
     border: none;
-    border-radius: 4px;
+    border-radius: 8px;
     outline: none !important;
-	box-shadow: none !important;
+	box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
 	cursor: pointer;
-	transition: background-color 0.2s ease;
+	transition: all 0.15s ease;
+	font-weight: 500;
 }
 .void-openfolder-button:hover {
-    background-color: #2563eb;
+    background-color: #0052CC;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
 }
 .void-openfolder-button:active {
-    background-color: #2563eb;
+    background-color: #0047B3;
+    transform: translateY(1px);
 }
 
-/* Added for Open SSH button with slightly darker color */
+/* Cursor-style secondary button */
 .void-openssh-button {
-    padding: 8px 20px;
-    background-color: #656565; /* Slightly darker than the #5a5a5a in the TS file */
-    color: white;
-    border: none;
-    border-radius: 4px;
+    padding: 10px 24px;
+    background-color: rgba(255, 255, 255, 0.08);
+    color: var(--vscode-editor-foreground);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 8px;
     outline: none !important;
-	box-shadow: none !important;
+	box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
     cursor: pointer;
-    transition: background-color 0.2s ease;
+    transition: all 0.15s ease;
+	font-weight: 500;
 }
 .void-openssh-button:hover {
-    background-color: #474747; /* Darker on hover */
+    background-color: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.18);
 }
 .void-openssh-button:active {
-    background-color: #474747;
+    background-color: rgba(255, 255, 255, 0.08);
+    transform: translateY(1px);
 }
 
 
 .void-settings-watermark-button {
 	margin: 8px 0;
-	padding: 8px 20px;
+	padding: 10px 24px;
 	background-color: var(--vscode-input-background);
 	color: var(--vscode-input-foreground);
-	border: none;
-	border-radius: 4px;
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	border-radius: 8px;
 	outline: none !important;
-	box-shadow: none !important;
+	box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
 	cursor: pointer;
-	transition: all 0.2s ease;
+	transition: all 0.15s ease;
+	font-weight: 500;
 }
 
 .void-settings-watermark-button:hover {
-	filter: brightness(1.1);
+	background-color: rgba(255, 255, 255, 0.04);
+	border-color: rgba(255, 255, 255, 0.12);
 }
 
 .void-settings-watermark-button:active {
-	filter: brightness(1.1);
+	transform: translateY(1px);
 }
 
 .void-link {
-	color: #3b82f6;
+	color: #0066FF;
 	cursor: pointer;
-	transition: all 0.2s ease;
+	transition: all 0.15s ease;
+	text-decoration: none;
 }
 
 .void-link:hover {
-	opacity: 80%;
+	color: #0052CC;
+	text-decoration: underline;
 }
 
 /* styles for all containers used by void */
