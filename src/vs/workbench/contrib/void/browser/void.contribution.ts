@@ -27,6 +27,7 @@ import './voidSettingsPane.js'
 
 // register css
 import './media/void.css'
+import './plateMarkdownEditor.contribution.js'
 
 // update (frontend part, also see platform/)
 import './voidUpdateActions.js'

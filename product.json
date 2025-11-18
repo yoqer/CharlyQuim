@@ -37,6 +37,19 @@
 		"itemUrl": "https://marketplace.visualstudio.com/items"
 	},
 	"builtInExtensions": [],
+	"configurationDefaults": {
+		"files.defaultLanguage": "markdown",
+		"workbench.editorAssociations": [
+			{
+				"viewType": "workbench.editor.voidPlateMarkdown",
+				"filenamePattern": "*.md"
+			},
+			{
+				"viewType": "workbench.editor.voidPlateMarkdown",
+				"filenamePattern": "*.mdx"
+			}
+		]
+	},
 	"linkProtectionTrustedDomains": [
 		"https://voideditor.com",
 		"https://voideditor.dev",

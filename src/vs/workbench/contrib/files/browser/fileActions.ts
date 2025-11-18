@@ -946,6 +946,9 @@ async function openExplorerAndCreate(accessor: ServicesAccessor, isFolder: boole
 	}
 
 	const newStat = new NewExplorerItem(fileService, configService, filesConfigService, folder, isFolder);
+	if (!isFolder) {
+		newStat.rename({ name: 'untitled.md' });
+	}
 	folder.addChild(newStat);
 
 	const onSuccess = async (value: string): Promise<void> => {

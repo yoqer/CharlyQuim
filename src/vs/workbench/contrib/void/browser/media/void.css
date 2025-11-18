@@ -198,6 +198,30 @@
 	border: none !important;
 }
 
+.plate-markdown-editor-container {
+	height: 100%;
+	width: 100%;
+	position: relative;
+	overflow: hidden;
+}
+
+.void-plate-markdown {
+	height: 100%;
+	width: 100%;
+	box-sizing: border-box;
+	padding: 12px 16px;
+	overflow: auto;
+}
+
+.void-plate-markdown [contenteditable="true"] {
+	outline: none;
+	min-height: 100%;
+}
+
+.void-plate-markdown--dark {
+	color-scheme: dark;
+}
+
 .void-scrollable-element::-webkit-scrollbar-corner,
 .void-scrollable-element *::-webkit-scrollbar-corner {
 	background-color: var(--void-bg-3) !important;
