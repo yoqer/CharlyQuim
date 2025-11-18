@@ -1,9 +1,9 @@
 {
-	"nameShort": "Void",
-	"nameLong": "Void",
+	"nameShort": "TraqCode",
+	"nameLong": "TraqCode",
 	"voidVersion": "1.4.9",
 	"voidRelease": "0044",
-	"applicationName": "void",
+	"applicationName": "traqcode",
 	"dataFolderName": ".void-editor",
 	"win32MutexName": "voideditor",
 	"licenseName": "MIT",
