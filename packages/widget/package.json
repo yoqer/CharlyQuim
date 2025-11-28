@@ -1,0 +1,17 @@
+{
+  "name": "@ai-feedback-widget/widget",
+  "version": "0.1.0",
+  "description": "Embeddable chat widget",
+  "main": "dist/widget.js",
+  "scripts": {
+    "dev": "esbuild src/index.ts --bundle --outfile=dist/widget.js --watch --sourcemap",
+    "build": "esbuild src/index.ts --bundle --outfile=dist/widget.js --minify"
+  },
+  "dependencies": {
+    "@ai-feedback-widget/shared": "*"
+  },
+  "devDependencies": {
+    "esbuild": "^0.19.11",
+    "typescript": "^5.3.3"
+  }
+}
