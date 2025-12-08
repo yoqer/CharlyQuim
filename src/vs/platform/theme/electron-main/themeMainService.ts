@@ -237,9 +237,13 @@ export class ThemeMainService extends Disposable implements IThemeMainService {
 		// Apply workspace specific overrides
 		let auxiliarySideBarWidthOverride: number | undefined;
 		if (workspace) {
-			const [auxiliarySideBarWidth, workspaceIds] = this.getWindowSplashOverride().layoutInfo.auxiliarySideBarWidth;
-			if (workspaceIds.includes(workspace.id)) {
-				auxiliarySideBarWidthOverride = auxiliarySideBarWidth;
+			const override = this.getWindowSplashOverride();
+			const auxiliarySideBarWidthData = override?.layoutInfo?.auxiliarySideBarWidth;
+			if (Array.isArray(auxiliarySideBarWidthData) && auxiliarySideBarWidthData.length >= 2) {
+				const [auxiliarySideBarWidth, workspaceIds] = auxiliarySideBarWidthData;
+				if (Array.isArray(workspaceIds) && workspaceIds.includes(workspace.id)) {
+					auxiliarySideBarWidthOverride = auxiliarySideBarWidth;
+				}
 			}
 		}
 
