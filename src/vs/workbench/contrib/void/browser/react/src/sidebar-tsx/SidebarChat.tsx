@@ -1152,7 +1152,7 @@ const UserMessageComponent = ({ chatMessage, messageIdx, isCheckpointGhost, curr
 			<VoidInputBox2
 				enableAtToMention
 				ref={setTextAreaRef}
-				className='min-h-[81px] max-h-[500px] px-0.5'
+				className='min-h-[24px] max-h-[500px] px-0.5'
 				placeholder="Edit your message..."
 				onChangeText={(text) => setIsDisabled(!text)}
 				onFocus={() => {
@@ -3017,7 +3017,7 @@ export const SidebarChat = () => {
 		className={`
 			flex flex-col
 			px-4 py-4 space-y-4
-			w-full h-full
+			w-full flex-1 min-h-0
 			overflow-x-hidden
 			overflow-y-auto
 			${previousMessagesHTML.length === 0 && !displayContentSoFar ? 'hidden' : ''}
@@ -3077,7 +3077,7 @@ export const SidebarChat = () => {
 	>
 		<VoidInputBox2
 			enableAtToMention
-			className={`min-h-[81px] px-0.5 py-0.5`}
+			className={`min-h-[24px] max-h-[200px] px-0.5 py-0.5`}
 			placeholder={`@ to mention, ${keybindingString ? `${keybindingString} to add a selection. ` : ''}Enter instructions...`}
 			onChangeText={onChangeText}
 			onKeyDown={onKeyDown}
@@ -3111,7 +3111,7 @@ export const SidebarChat = () => {
 
 
 
-	const threadPageInput = <div key={'input' + chatThreadsState.currentThreadId}>
+	const threadPageInput = <div key={'input' + chatThreadsState.currentThreadId} className='shrink-0'>
 		<div className='px-4'>
 			<CommandBarInChat />
 		</div>
