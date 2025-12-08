@@ -1,6 +1,6 @@
 {
-	"name": "Code - OSS",
-	"short_name": "Code- OSS",
+	"name": "Sup-IDE",
+	"short_name": "Sup-IDE",
 	"start_url": "/",
 	"lang": "en-US",
 	"display": "standalone",
@@ -16,5 +16,7 @@
 			"type": "image/png",
 			"sizes": "512x512"
 		}
-	]
+	],
+	"theme_color": "#ffffff",
+	"background_color": "#ffffff"
 }
