@@ -1615,7 +1615,7 @@ class EditCodeService extends Disposable implements IEditCodeService {
 
 	private _instantlyApplySRBlocks(uri: URI, blocksStr: string) {
 		const blocks = extractSearchReplaceBlocks(blocksStr)
-		if (blocks.length === 0) throw new Error(`No Search/Replace blocks were received!`)
+		if (blocks.length === 0) throw new Error(`No Search/Replace blocks were received! The LLM response did not contain the expected format:\n<<<<<<< ORIGINAL\n[original code]\n=======\n[new code]\n>>>>>>> UPDATED`)
 
 		const { model } = this._voidModelService.getModel(uri)
 		if (!model) throw new Error(`Error applying Search/Replace blocks: File does not exist.`)
@@ -1968,7 +1968,11 @@ class EditCodeService extends Disposable implements IEditCodeService {
 
 						const blocks = extractSearchReplaceBlocks(fullText)
 						if (blocks.length === 0) {
-							this._notificationService.info(`Void: We ran Fast Apply, but the LLM didn't output any changes.`)
+							this._notificationService.info(`Void: We ran Fast Apply, but the LLM didn't output any changes. The model may not have returned the expected SEARCH/REPLACE format.`)
+							this._writeURIText(uri, originalFileCode, 'wholeFileRange', { shouldRealignDiffAreas: true })
+							onDone()
+							resMessageDonePromise()
+							return
 						}
 						this._writeURIText(uri, originalFileCode, 'wholeFileRange', { shouldRealignDiffAreas: true })
 
