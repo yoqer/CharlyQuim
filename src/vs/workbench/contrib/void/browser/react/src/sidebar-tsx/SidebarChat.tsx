@@ -3455,12 +3455,14 @@ const ParallelToolGroup = ({
 		return acc;
 	}, { success: 0, error: 0, rejected: 0, invalid: 0 });
 
-	// Auto-collapse when all tools complete
+	// Auto-collapse when all tools complete (only on first completion)
+	const [hasCollapsed, setHasCollapsed] = useState(false);
 	useEffect(() => {
-		if (allToolsCompleted) {
+		if (allToolsCompleted && !hasCollapsed) {
 			setIsExpanded(false);
+			setHasCollapsed(true);
 		}
-	}, [allToolsCompleted]);
+	}, [allToolsCompleted, hasCollapsed]);
 
 	// Generate smart summary by grouping tool types
 	const generateSummary = (): string => {
@@ -3549,16 +3551,13 @@ const ParallelToolGroup = ({
 		)}
 
 			{/* Tool list */}
-			<div className={`flex flex-col ${allToolsCompleted && !isExpanded ? 'hidden' : ''}`}>
-				{messages.map(({ index }) => {
-					const previousMessage = index > 0 ? previousMessages[index - 1] : null
-					const previousRole = previousMessage?.role
-					const currentRole = previousMessages[index]?.role
-					const addGap = (previousRole === 'user' && currentRole === 'assistant') ||
-						(previousRole === 'assistant' && currentRole === 'user')
+			<div className={`flex flex-col gap-0.5 ${allToolsCompleted && !isExpanded ? 'hidden' : ''}`}>
+				{messages.map(({ index, message }) => {
+					// Use stable keys based on message content
+					const messageKey = `tool-${index}-${message.role}-${(message as any).name || 'unknown'}`
 
 					return (
-						<div key={`tool-${index}`} className={addGap ? 'mt-2' : ''}>
+						<div key={messageKey}>
 							<ChatBubble
 								currCheckpointIdx={currCheckpointIdx}
 								chatMessage={previousMessages[index]}
@@ -3845,7 +3844,7 @@ const StreamingTool = ({ toolCallSoFar }: { toolCallSoFar: RawToolCallObj }) => 
 	let uri: URI | undefined
 	try {
 		if (toolCallSoFar.rawParams.uri && typeof toolCallSoFar.rawParams.uri === 'string') {
-			uri = URI.file(toolCallSoFar.rawParams.uri)
+			uri = URI.parse(toolCallSoFar.rawParams.uri)
 		}
 	} catch (e) {
 		console.warn('Failed to parse URI for StreamingTool:', e)
@@ -3856,21 +3855,32 @@ const StreamingTool = ({ toolCallSoFar }: { toolCallSoFar: RawToolCallObj }) => 
 
 	const isEditTool = toolName === 'edit_file' || toolName === 'rewrite_file'
 
-	let title = 'Tool'
+	// Get title with proper loading state
+	let title: React.ReactNode = 'Tool'
 	if (isABuiltinToolName(toolName)) {
-		// Use existing titleOfBuiltinToolName definition
 		const toolInfo = (titleOfBuiltinToolName as any)[toolName]
-		title = toolInfo?.proposed || toolInfo?.done || toolName
+		title = toolInfo?.running || toolInfo?.proposed || toolInfo?.done || toolName
 	} else {
-		title = toolName
+		// For MCP tools
+		title = loadingTitleWrapper(`Calling ${removeMCPToolNamePrefix(toolName)}`)
 	}
 
 	const uriDone = toolCallSoFar.doneParams?.includes('uri') ?? false
 	const uriStr = toolCallSoFar.rawParams['uri'] as string | undefined
 
-	// Keep title as action label only (no filename) - filename will be shown in desc1
-	// This matches the normal tool rendering pattern where title is the action and desc1 is the target
-	const desc1 = uriDone && uriStr ? getBasename(uriStr) : (uriStr ? getBasename(uriStr) : '...')
+	// Build desc1 based on what's available
+	let desc1: string = '...'
+	if (uriStr) {
+		try {
+			desc1 = getBasename(uriStr)
+		} catch {
+			desc1 = uriStr
+		}
+	} else if (toolCallSoFar.rawParams.command) {
+		desc1 = `"${toolCallSoFar.rawParams.command}"`
+	} else if (toolCallSoFar.rawParams.query) {
+		desc1 = `"${toolCallSoFar.rawParams.query}"`
+	}
 
 	const desc1OnClick = uri ? () => voidOpenFileFn(uri, accessor) : undefined
 
@@ -3882,26 +3892,29 @@ const StreamingTool = ({ toolCallSoFar }: { toolCallSoFar: RawToolCallObj }) => 
 	const code = (toolCallSoFar.rawParams.search_replace_blocks ?? toolCallSoFar.rawParams.new_content ?? '') as string
 
 	// Determine if we have any code to display (only for edit tools)
-	const hasCode = isEditTool && !!(code && code.length > 0)
+	const hasCode = isEditTool && !!(code && code.trim().length > 0)
 
 	return (
 		<ToolHeaderWrapper
 			title={title}
 			desc1={desc1}
 			desc1OnClick={desc1OnClick}
+			desc1Info={uri ? getRelative(uri, accessor) : undefined}
 			icon={icon}
 			iconTooltip={iconTooltip}
 			isOpen={hasCode}
 			isRunning={true}
 		>
 			{hasCode && uri ? (
-				<ToolChildrenWrapper className='bg-void-bg-3'>
-					<EditToolChildren
-						uri={uri}
-						code={code}
-						type={'rewrite'} // as it streams, show in rewrite format, don't make a diff editor
-					/>
-				</ToolChildrenWrapper>
+				<EditToolCardWrapper isRunning={true}>
+					<ToolChildrenWrapper>
+						<EditToolChildren
+							uri={uri}
+							code={code}
+							type={'rewrite'} // as it streams, show in rewrite format, don't make a diff editor
+						/>
+					</ToolChildrenWrapper>
+				</EditToolCardWrapper>
 			) : null}
 		</ToolHeaderWrapper>
 	)
@@ -4050,6 +4063,7 @@ export const SidebarChat = () => {
 		const isParallelTool = (msg: ChatMessage): boolean => {
 			return msg.role === 'tool'
 				&& msg.type !== 'invalid_params'
+				&& msg.type !== 'tool_request' // Don't group pending requests
 				&& isABuiltinToolName(msg.name)
 				&& PARALLEL_TOOLS.includes(msg.name as any)
 		}
@@ -4057,58 +4071,60 @@ export const SidebarChat = () => {
 		const groupedMessages: Array<{ type: 'single', message: ChatMessage, index: number } | { type: 'parallel', messages: Array<{ message: ChatMessage, index: number }> }> = []
 		let currentParallelGroup: Array<{ message: ChatMessage, index: number }> = []
 
+		// Helper to close current group
+		const closeCurrentGroup = () => {
+			if (currentParallelGroup.length > 1) {
+				groupedMessages.push({ type: 'parallel', messages: [...currentParallelGroup] })
+			} else if (currentParallelGroup.length === 1) {
+				groupedMessages.push({ type: 'single', message: currentParallelGroup[0].message, index: currentParallelGroup[0].index })
+			}
+			currentParallelGroup = []
+		}
+
 		for (let i = 0; i < previousMessages.length; i++) {
 			const message = previousMessages[i]
 
 			if (isParallelTool(message)) {
+				// Start or continue a parallel group
 				currentParallelGroup.push({ message, index: i })
 
-				// Check if next message is also a parallel tool (within reasonable distance)
-				let foundNextParallelTool = false
-				for (let j = i + 1; j < Math.min(i + 4, previousMessages.length); j++) {
-					const nextMsg = previousMessages[j]
-					if (isParallelTool(nextMsg)) {
-						foundNextParallelTool = true
-						break
-					}
-					// Stop if we hit a user message or checkpoint
-					if (nextMsg.role === 'user' || nextMsg.role === 'checkpoint') {
-						break
-					}
-				}
+				// Peek ahead to see if we should continue the group
+				const nextIndex = i + 1
+				if (nextIndex < previousMessages.length) {
+					const nextMsg = previousMessages[nextIndex]
 
-				// Close group if no more parallel tools found
-				if (!foundNextParallelTool) {
-					if (currentParallelGroup.length > 1) {
-						groupedMessages.push({ type: 'parallel', messages: [...currentParallelGroup] })
-					} else if (currentParallelGroup.length === 1) {
-						groupedMessages.push({ type: 'single', message: currentParallelGroup[0].message, index: currentParallelGroup[0].index })
+					// Close group if next message is:
+					// 1. Not a parallel tool
+					// 2. A user message (new conversation turn)
+					// 3. An assistant message (tool results complete)
+					// 4. A checkpoint
+					const shouldCloseGroup = !isParallelTool(nextMsg) ||
+						nextMsg.role === 'user' ||
+						nextMsg.role === 'assistant' ||
+						nextMsg.role === 'checkpoint'
+
+					if (shouldCloseGroup) {
+						closeCurrentGroup()
 					}
-					currentParallelGroup = []
+				} else {
+					// Last message - close group
+					closeCurrentGroup()
 				}
 			} else {
-				// Close any pending parallel group
-				if (currentParallelGroup.length > 1) {
-					groupedMessages.push({ type: 'parallel', messages: [...currentParallelGroup] })
-				} else if (currentParallelGroup.length === 1) {
-					groupedMessages.push({ type: 'single', message: currentParallelGroup[0].message, index: currentParallelGroup[0].index })
-				}
-				currentParallelGroup = []
+				// Non-parallel-tool message
+				// First close any pending parallel group
+				closeCurrentGroup()
 
 				// Add current message as single
 				groupedMessages.push({ type: 'single', message, index: i })
 			}
 		}
 
-		// Handle remaining items in currentParallelGroup
-		if (currentParallelGroup.length > 1) {
-			groupedMessages.push({ type: 'parallel', messages: [...currentParallelGroup] })
-		} else if (currentParallelGroup.length === 1) {
-			groupedMessages.push({ type: 'single', message: currentParallelGroup[0].message, index: currentParallelGroup[0].index })
-		}
+		// Handle any remaining items (safety check)
+		closeCurrentGroup()
 
 		// Render grouped messages
-		return groupedMessages.flatMap((group, groupIdx) => {
+		return groupedMessages.map((group, groupIdx) => {
 			if (group.type === 'single') {
 				const i = group.index
 				const previousMessage = i > 0 ? previousMessages[i - 1] : null
@@ -4120,7 +4136,7 @@ export const SidebarChat = () => {
 					(previousRole === 'assistant' && currentRole === 'user')
 
 				return (
-					<div key={`single-${i}`} className={shouldAddGap ? 'mt-2' : ''}>
+					<div key={`msg-${i}-${group.message.role}`} className={shouldAddGap ? 'mt-2' : ''}>
 						<ChatBubble
 							currCheckpointIdx={currCheckpointIdx}
 							chatMessage={group.message}
@@ -4133,17 +4149,19 @@ export const SidebarChat = () => {
 					</div>
 				)
 			} else {
-				// Parallel group - render all tools immediately
+				// Parallel group - render all tools with stable key
+				const groupKey = `parallel-${group.messages.map(m => m.index).join('-')}`
 				return (
-					<ParallelToolGroup
-						key={`parallel-${groupIdx}-${group.messages[0]?.index ?? 'x'}`}
-						messages={group.messages}
-						previousMessages={previousMessages}
-						threadId={threadId}
-						currCheckpointIdx={currCheckpointIdx}
-						isRunning={isRunning}
-						scrollContainerRef={scrollContainerRef}
-					/>
+					<div key={groupKey} className="my-0.5">
+						<ParallelToolGroup
+							messages={group.messages}
+							previousMessages={previousMessages}
+							threadId={threadId}
+							currCheckpointIdx={currCheckpointIdx}
+							isRunning={isRunning}
+							scrollContainerRef={scrollContainerRef}
+						/>
+					</div>
 				)
 			}
 		})
@@ -4179,12 +4197,18 @@ export const SidebarChat = () => {
 		? toolCallsSoFar
 		: (toolIsGenerating && toolCallSoFar ? [toolCallSoFar] : [])
 
-	const generatingTools = streamingToolsToRender.map((tool, i) => (
-		<StreamingTool
-			key={`curr-streaming-tool-${i}`}
-			toolCallSoFar={tool}
-		/>
-	))
+	const generatingTools = streamingToolsToRender.map((tool, i) => {
+		// Create stable key based on tool name and params
+		const toolKey = tool.name
+			? `streaming-${tool.name}-${tool.rawParams?.uri || i}`
+			: `streaming-unknown-${i}`
+
+		return (
+			<ErrorBoundary key={toolKey}>
+				<StreamingTool toolCallSoFar={tool} />
+			</ErrorBoundary>
+		)
+	})
 
 	// Check if current thread has TODOs
 	const hasTodos = (currentThread?.todoList?.length ?? 0) > 0;
@@ -4333,6 +4357,10 @@ export const SidebarChat = () => {
 
 	const chatAreaRef = useRef<HTMLDivElement | null>(null)
 
+	const handleBrowserButtonClick = useCallback(() => {
+		commandService.executeCommand('simpleBrowser.show', 'https://www.google.com')
+	}, [commandService])
+
 	const inputChatArea = <VoidChatArea
 		featureName='Chat'
 		onSubmit={() => onSubmit()}
@@ -4356,6 +4384,7 @@ export const SidebarChat = () => {
 					className='hidden'
 				/>
 				<ButtonAddImage onClick={handleImageButtonClick} />
+				<ButtonOpenBrowser onClick={handleBrowserButtonClick} />
 			</>
 		}
 		onDragEnter={dragHandlers.handleDragEnter}
