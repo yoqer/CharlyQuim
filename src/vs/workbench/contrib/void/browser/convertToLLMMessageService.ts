@@ -809,7 +809,7 @@ export interface IConvertToLLMMessageService {
 	readonly _serviceBrand: undefined;
 	prepareLLMSimpleMessages: (opts: { simpleMessages: SimpleLLMMessage[], systemMessage: string, modelSelection: ModelSelection | null, featureName: FeatureName }) => { messages: LLMChatMessage[], separateSystemMessage: string | undefined }
 	prepareLLMChatMessages: (opts: { chatMessages: ChatMessage[], chatMode: ChatMode, modelSelection: ModelSelection | null }) => Promise<{ messages: LLMChatMessage[], separateSystemMessage: string | undefined }>
-	prepareFIMMessage(opts: { messages: LLMFIMMessage, }): { prefix: string, suffix: string, stopTokens: string[] }
+	prepareFIMMessage(opts: { messages: LLMFIMMessage, metadata?: { fileName?: string, languageId?: string, enclosingContext?: string, importsContext?: string } }): { prefix: string, suffix: string, stopTokens: string[] }
 }
 
 export const IConvertToLLMMessageService = createDecorator<IConvertToLLMMessageService>('ConvertToLLMMessageService');
@@ -1002,20 +1002,39 @@ class ConvertToLLMMessageService extends Disposable implements IConvertToLLMMess
 
 	// --- FIM ---
 
-	prepareFIMMessage: IConvertToLLMMessageService['prepareFIMMessage'] = ({ messages }) => {
+	prepareFIMMessage: IConvertToLLMMessageService['prepareFIMMessage'] = ({ messages, metadata }) => {
 		// Get combined AI instructions with the provided aiInstructions as the base
-		const combinedInstructions = this._getCombinedAIInstructions();
+		// const combinedInstructions = this._getCombinedAIInstructions(); // Reserved for future use
 
-		let prefix = `\
-${!combinedInstructions ? '' : `\
-// Instructions:
-// Do not output an explanation. Try to avoid outputting comments. Only output the middle code.
-${combinedInstructions.split('\n').map(line => `//${line}`).join('\n')}`}
+		// Enhanced FIM prompt following best practices from GitHub Copilot and Cursor
+		// Key insight: Keep instructions minimal and use natural code context
+		// The model should "fill in the blank" naturally, not follow complex instructions
 
-${messages.prefix}`
+		// Prepend imports context if available (critical for understanding available modules/types)
+		const importsSection = metadata?.importsContext ? `${metadata.importsContext}\n\n` : '';
 
-		const suffix = messages.suffix
-		const stopTokens = messages.stopTokens
+		// Simple, effective prompt structure:
+		// 1. Show imports (what's available)
+		// 2. Show code before cursor
+		// 3. Model completes naturally
+		// 4. Show code after cursor
+
+		let prefix = messages.prefix;
+		let suffix = messages.suffix;
+
+		// Only add metadata as comments if it's a complex file (more than just simple completion)
+		if (metadata?.fileName && metadata?.enclosingContext) {
+			const fileComment = `# ${metadata.fileName}` // Single line comment
+			const contextComment = metadata.enclosingContext ? `# ${metadata.enclosingContext}` : '';
+
+			// Add minimal context header only if we have enclosing context
+			prefix = `${fileComment}\n${contextComment ? contextComment + '\n' : ''}${importsSection}${prefix}`;
+		} else if (importsSection) {
+			// Just add imports if no complex context
+			prefix = `${importsSection}${prefix}`;
+		}
+
+		const stopTokens = messages.stopTokens;
 		return { prefix, suffix, stopTokens }
 	}
 

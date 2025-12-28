@@ -16,7 +16,7 @@ import './quickEditActions.js'
 
 
 // register Autocomplete
-import './autocompleteService.js'
+import './autocomplete/index.js'
 
 // register Context services
 // import './contextGatheringService.js'
