@@ -5,8 +5,8 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { ChevronRight, ChevronDown, Copy, ExternalLink, Globe } from 'lucide-react';
-import { ToolMessage } from '../../../../../common/chatThreadServiceTypes.js';
+import { ExternalLink, ChevronsUpDown } from 'lucide-react';
+import { ToolMessage } from '../../../../common/chatThreadServiceTypes.js';
 import {
 	BrowserToolName,
 	BrowserToolVariant,
@@ -70,7 +70,7 @@ export function BrowserToolBar<T extends BrowserToolName>({
 				return result.url;
 			}
 		}
-		if (type !== 'tool_request' && (name === 'browser_navigate')) {
+		if (name === 'browser_navigate') {
 			return (toolMessage.params as any).url;
 		}
 		return null;
@@ -103,77 +103,103 @@ export function BrowserToolBar<T extends BrowserToolName>({
 	}, [toolMessage, name, type, primaryContent]);
 
 	return (
-		<div className="w-full">
+		<div className="w-full relative group">
 			{/* Main horizontal bar */}
 			<motion.div
 				className={`
-					flex flex-row items-center gap-2 px-2 py-1.5 rounded
-					border border-void-border-2 bg-void-bg-3
-					hover:border-void-border-1 transition-colors duration-150
-					border-l-2 ${variantBorderClass}
-					${isError ? 'border-l-red-500/50' : ''}
-					${isSuccess ? 'border-l-green-500/50' : ''}
+					relative overflow-hidden
+					flex flex-row items-center gap-2.5 px-3 py-1.5 rounded-lg
+					border border-white/5 bg-white/[0.03]
+					hover:border-white/10 hover:bg-white/[0.05] transition-all duration-200 ease-out
+					${isSuccess ? 'border-blue-500/20 bg-blue-500/[0.04]' : ''}
+					${isRunning ? 'border-blue-400/30 bg-blue-400/[0.06]' : ''}
+					${isError ? 'border-red-500/20 bg-red-500/[0.04]' : ''}
 				`}
-				animate={
-					isRunning
-						? {
-								boxShadow: [
-									'0 0 0 0 rgba(250, 204, 21, 0.3)',
-									'0 0 0 2px rgba(250, 204, 21, 0.1)',
-									'0 0 0 0 rgba(250, 204, 21, 0.3)',
-								],
-						  }
-						: {}
-				}
-				transition={isRunning ? { duration: 2, repeat: Infinity } : {}}
+				initial={{ opacity: 0, y: 5 }}
+				animate={{
+					opacity: 1,
+					y: 0,
+					borderColor: isRunning ? 'rgba(59, 130, 246, 0.5)' : isSuccess ? 'rgba(59, 130, 246, 0.3)' : isError ? 'rgba(239, 68, 68, 0.3)' : 'rgba(255,255,255,0.08)',
+				}}
+				transition={{
+					duration: 0.2,
+					borderColor: isRunning ? { duration: 1.2, repeat: Infinity, repeatType: 'reverse' } : { duration: 0.2 }
+				}}
 			>
-				{/* State indicator icon */}
-				<BrowserToolStateIndicator toolMessage={toolMessage} variant={variant} />
-
-				{/* Tool title */}
-				<span className="text-[12px] text-void-fg-3 opacity-70 flex-shrink-0">
-					{title}:
-				</span>
-
-				{/* Primary content */}
-				{primaryContent && (
-					<span
-						className="text-[12px] text-void-fg-2 truncate cursor-pointer hover:text-void-fg-1 hover:underline flex-1 min-w-0"
-						title={primaryContent}
-						onClick={() => {
-							if (url) {
-								commandService.executeCommand('simpleBrowser.show', url);
-							}
-						}}
-					>
-						{primaryContent}
-					</span>
+				{/* Shimmer Effect for Running State */}
+				{isRunning && (
+					<>
+						<motion.div
+							className="absolute inset-0 z-0"
+							initial={{ x: '-100%' }}
+							animate={{ x: '100%' }}
+							transition={{
+								repeat: Infinity,
+								duration: 2,
+								ease: 'linear',
+							}}
+							style={{
+								background: 'linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.1), transparent)',
+							}}
+						/>
+						<motion.div
+							className="absolute inset-0 z-0"
+							initial={{ opacity: 0 }}
+							animate={{ opacity: [0.03, 0.08, 0.03] }}
+							transition={{
+								repeat: Infinity,
+								duration: 2,
+								ease: 'easeInOut',
+							}}
+							style={{
+								backgroundColor: 'rgba(59, 130, 246, 1)',
+							}}
+						/>
+					</>
 				)}
 
-				{/* Spacer */}
-				<div className="flex-1 min-w-0" />
+				{/* Tool Icon */}
+				<div className="flex-shrink-0 opacity-70 relative z-10 flex items-center justify-center w-5">
+					{name === 'browser_navigate' ? (
+						<ExternalLink size={14} className="text-blue-400" />
+					) : (
+						<BrowserToolStateIndicator toolMessage={toolMessage} variant={variant} />
+					)}
+				</div>
+
+				{/* Title and Content Container */}
+				<div className="flex flex-row items-baseline gap-2 flex-1 min-w-0 relative z-10 overflow-hidden">
+					<span className="text-[12px] text-void-fg-2 font-semibold whitespace-nowrap opacity-90 flex-shrink-0">
+						{title}
+					</span>
+
+					{primaryContent && (
+						<span
+							className="text-[12px] text-void-fg-3 truncate hover:text-blue-400 hover:underline cursor-pointer opacity-80 flex-1 min-w-0"
+							title={primaryContent}
+							onClick={() => {
+								if (url) {
+									commandService.executeCommand('simpleBrowser.show', url);
+								}
+							}}
+						>
+							{primaryContent}
+						</span>
+					)}
+				</div>
 
 				{/* Action buttons */}
-				<div className="flex items-center gap-1 flex-shrink-0">
-					{/* Expand/collapse button (only for tools with preview) */}
-					{canExpand && (
-						<button
-							onClick={() => setIsExpanded(!isExpanded)}
-							className="p-1 rounded hover:bg-void-bg-4 transition-colors"
-							aria-label={isExpanded ? 'Collapse preview' : 'Expand preview'}
-							aria-expanded={isExpanded}
-						>
-							{isExpanded ? (
-								<ChevronDown size={14} className="text-void-fg-3" />
-							) : (
-								<ChevronRight size={14} className="text-void-fg-3" />
-							)}
-						</button>
+				<div className="flex items-center gap-2 flex-shrink-0 relative z-10 ml-auto">
+					{/* Meta info */}
+					{metaInfo && (
+						<span className="text-[10px] text-void-fg-4 font-mono opacity-40 whitespace-nowrap hidden sm:inline">
+							{metaInfo}
+						</span>
 					)}
 
 					{/* Copy button */}
 					{copyableContent && (
-						<div className="flex-shrink-0">
+						<div className="flex-shrink-0 opacity-40 hover:opacity-100 transition-opacity">
 							<CopyButton
 								codeStr={copyableContent}
 								toolTipName={
@@ -187,29 +213,21 @@ export function BrowserToolBar<T extends BrowserToolName>({
 						</div>
 					)}
 
-					{/* Open in browser button (for navigation tools) */}
-					{url && (
+					{/* Expand button (only if tool has preview) */}
+					{canExpand && (
 						<button
-							onClick={() => commandService.executeCommand('simpleBrowser.show', url)}
-							className="p-1 rounded hover:bg-void-bg-4 transition-colors"
-							aria-label="Open in browser"
-							title="Open in browser"
+							onClick={() => setIsExpanded(!isExpanded)}
+							className={`p-1 rounded-md transition-all opacity-40 hover:opacity-100 ${isExpanded ? 'bg-white/10 opacity-100' : 'hover:bg-white/5'}`}
+							aria-label={isExpanded ? 'Collapse' : 'Expand'}
 						>
-							<Globe size={14} className="text-void-fg-3 hover:text-void-fg-1" />
+							<ChevronsUpDown size={12} className="text-void-fg-3" />
 						</button>
-					)}
-
-					{/* Meta info */}
-					{metaInfo && (
-						<span className="text-[10px] text-void-fg-4 opacity-60 ml-1">
-							{metaInfo}
-						</span>
 					)}
 				</div>
 			</motion.div>
 
 			{/* Expandable preview section */}
-			{canExpand && (
+			{canExpand && isExpanded && (
 				<BrowserToolPreview toolMessage={toolMessage} isExpanded={isExpanded} />
 			)}
 		</div>

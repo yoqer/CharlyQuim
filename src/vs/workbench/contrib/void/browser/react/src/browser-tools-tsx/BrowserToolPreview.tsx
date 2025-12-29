@@ -5,7 +5,7 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ToolMessage } from '../../../../../common/chatThreadServiceTypes.js';
+import { ToolMessage } from '../../../../common/chatThreadServiceTypes.js';
 import { BrowserToolName } from './BrowserToolHelpers.js';
 import { ChatMarkdownRender } from '../markdown/ChatMarkdownRender.js';
 
@@ -68,22 +68,25 @@ function ScreenshotPreview({ base64 }: { base64: string }) {
 			initial={{ height: 0, opacity: 0 }}
 			animate={{ height: 'auto', opacity: 1 }}
 			exit={{ height: 0, opacity: 0 }}
-			transition={{ duration: 0.2, ease: 'easeInOut' }}
+			transition={{ duration: 0.3, ease: 'easeOut' }}
 			className="overflow-hidden mt-2"
 		>
-			<div className="border border-void-border-2 rounded bg-void-bg-2 p-2">
+			<div className="border border-void-border-2 rounded-xl bg-void-bg-2 p-2 shadow-inner">
 				<img
 					src={`data:image/png;base64,${base64}`}
 					alt="Screenshot"
-					className={`max-h-[200px] w-auto rounded transition-opacity duration-300 ${
-						isLoaded ? 'opacity-100' : 'opacity-0'
+					className={`max-h-[200px] w-auto rounded-lg transition-all duration-500 ease-out ${
+						isLoaded ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
 					}`}
 					onLoad={() => setIsLoaded(true)}
 					loading="lazy"
 				/>
 				{!isLoaded && (
 					<div className="flex items-center justify-center h-[200px]">
-						<span className="text-[12px] text-void-fg-4">Loading image...</span>
+						<div className="flex flex-col items-center gap-2">
+							<div className="w-5 h-5 border-2 border-void-border-1 border-t-void-fg-1 rounded-full animate-spin opacity-40" />
+							<span className="text-[11px] text-void-fg-4 font-medium">Loading preview...</span>
+						</div>
 					</div>
 				)}
 			</div>
@@ -98,11 +101,11 @@ function TextPreview({ text }: { text: string }) {
 			initial={{ height: 0, opacity: 0 }}
 			animate={{ height: 'auto', opacity: 1 }}
 			exit={{ height: 0, opacity: 0 }}
-			transition={{ duration: 0.2, ease: 'easeInOut' }}
+			transition={{ duration: 0.3, ease: 'easeOut' }}
 			className="overflow-hidden mt-2"
 		>
-			<div className="border border-void-border-2 rounded bg-void-bg-2 p-2 max-h-[200px] overflow-y-auto">
-				<pre className="text-[12px] text-void-fg-3 whitespace-pre-wrap break-words font-mono">
+			<div className="border border-void-border-2 rounded-xl bg-void-bg-2 p-3 max-h-[250px] overflow-y-auto shadow-inner custom-scrollbar">
+				<pre className="text-[11px] text-void-fg-3 whitespace-pre-wrap break-words font-mono leading-relaxed opacity-90">
 					{text}
 				</pre>
 			</div>
@@ -127,27 +130,27 @@ function ContentPreview({ title, html }: { title: string; html: string }) {
 			initial={{ height: 0, opacity: 0 }}
 			animate={{ height: 'auto', opacity: 1 }}
 			exit={{ height: 0, opacity: 0 }}
-			transition={{ duration: 0.2, ease: 'easeInOut' }}
+			transition={{ duration: 0.3, ease: 'easeOut' }}
 			className="overflow-hidden mt-2"
 		>
-			<div className="border border-void-border-2 rounded bg-void-bg-2">
-				<div className="flex items-center justify-between px-2 py-1 border-b border-void-border-2">
-					<span className="text-[11px] text-void-fg-3 font-medium">{title}</span>
+			<div className="border border-void-border-2 rounded-xl bg-void-bg-2 overflow-hidden shadow-inner">
+				<div className="flex items-center justify-between px-3 py-1.5 border-b border-void-border-2 bg-void-bg-1/50">
+					<span className="text-[11px] text-void-fg-3 font-semibold opacity-80 uppercase tracking-wider">{title}</span>
 					<button
 						onClick={() => setShowRaw(!showRaw)}
-						className="text-[10px] text-void-fg-4 hover:text-void-fg-2 transition-colors px-2 py-0.5 rounded hover:bg-void-bg-3"
+						className="text-[10px] text-void-fg-4 hover:text-void-fg-2 transition-all px-2 py-0.5 rounded-md hover:bg-void-bg-3 border border-transparent hover:border-void-border-2"
 					>
-						{showRaw ? 'Show Text' : 'Show HTML'}
+						{showRaw ? 'View Reader' : 'View HTML'}
 					</button>
 				</div>
-				<div className="p-2 max-h-[200px] overflow-y-auto">
+				<div className="p-3 max-h-[250px] overflow-y-auto custom-scrollbar">
 					{showRaw ? (
-						<pre className="text-[11px] text-void-fg-3 whitespace-pre-wrap break-words font-mono">
+						<pre className="text-[11px] text-void-fg-3 whitespace-pre-wrap break-words font-mono leading-relaxed opacity-90">
 							{html.substring(0, 5000)}
 							{html.length > 5000 && '... (truncated)'}
 						</pre>
 					) : (
-						<div className="text-[12px] text-void-fg-3 prose prose-sm max-w-none">
+						<div className="text-[12px] text-void-fg-3 prose prose-invert prose-sm max-w-none opacity-90">
 							{textContent.substring(0, 2000)}
 							{textContent.length > 2000 && '... (truncated)'}
 						</div>
@@ -177,11 +180,11 @@ function EvaluatePreview({ result }: { result: unknown }) {
 			initial={{ height: 0, opacity: 0 }}
 			animate={{ height: 'auto', opacity: 1 }}
 			exit={{ height: 0, opacity: 0 }}
-			transition={{ duration: 0.2, ease: 'easeInOut' }}
+			transition={{ duration: 0.3, ease: 'easeOut' }}
 			className="overflow-hidden mt-2"
 		>
-			<div className="border border-void-border-2 rounded bg-void-bg-2 p-2 max-h-[200px] overflow-y-auto">
-				<pre className="text-[12px] text-void-fg-3 whitespace-pre-wrap break-words font-mono">
+			<div className="border border-void-border-2 rounded-xl bg-void-bg-2 p-3 max-h-[250px] overflow-y-auto shadow-inner custom-scrollbar">
+				<pre className="text-[11px] text-void-fg-3 whitespace-pre-wrap break-words font-mono leading-relaxed opacity-90">
 					{formattedResult}
 				</pre>
 			</div>

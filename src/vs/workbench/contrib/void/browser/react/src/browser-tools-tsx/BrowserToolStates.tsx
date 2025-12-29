@@ -6,7 +6,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Check, AlertTriangle, X, Loader2 } from 'lucide-react';
-import { ToolMessage } from '../../../../../common/chatThreadServiceTypes.js';
+import { ToolMessage } from '../../../../common/chatThreadServiceTypes.js';
 import { BrowserToolName, BrowserToolVariant, getVariantIconColor } from './BrowserToolHelpers.js';
 
 interface BrowserToolStateIndicatorProps<T extends BrowserToolName> {
@@ -44,8 +44,6 @@ export function BrowserToolStateIndicator<T extends BrowserToolName>({
 
 // Animated spinner with pulse effect for running state
 function ShimmerSpinner({ variant }: { variant: BrowserToolVariant }) {
-	const iconColorClass = getVariantIconColor(variant);
-
 	return (
 		<motion.div
 			className="flex-shrink-0"
@@ -53,12 +51,12 @@ function ShimmerSpinner({ variant }: { variant: BrowserToolVariant }) {
 				rotate: 360,
 			}}
 			transition={{
-				duration: 1,
+				duration: 1.2,
 				repeat: Infinity,
 				ease: 'linear',
 			}}
 		>
-			<Loader2 size={14} className={iconColorClass} />
+			<Loader2 size={13} className="text-blue-400" />
 		</motion.div>
 	);
 }
@@ -76,7 +74,7 @@ function CheckmarkIcon({ variant }: { variant: BrowserToolVariant }) {
 				damping: 20,
 			}}
 		>
-			<Check size={14} className="text-green-500" />
+			<Check size={13} className="text-blue-500" />
 		</motion.div>
 	);
 }

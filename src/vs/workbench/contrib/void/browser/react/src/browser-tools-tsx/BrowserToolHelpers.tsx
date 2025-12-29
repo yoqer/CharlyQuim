@@ -3,7 +3,7 @@
  *  Licensed under the Apache License, Version 2.0. See LICENSE.txt for more information.
  *--------------------------------------------------------------------------------------*/
 
-import { ToolMessage } from '../../../../../common/chatThreadServiceTypes.js';
+import { ToolMessage } from '../../../../common/chatThreadServiceTypes.js';
 
 // Type definitions for browser tools
 export type BrowserToolName =
@@ -51,13 +51,10 @@ export function getBrowserToolVariant(toolName: BrowserToolName): BrowserToolVar
 export function getVariantBorderColor(variant: BrowserToolVariant): string {
 	switch (variant) {
 		case 'navigation':
-			return 'border-l-blue-500/30';
 		case 'interaction':
-			return 'border-l-purple-500/30';
 		case 'capture':
-			return 'border-l-green-500/30';
 		case 'evaluation':
-			return 'border-l-orange-500/30';
+			return 'border-l-blue-500/20';
 	}
 }
 
@@ -65,13 +62,10 @@ export function getVariantBorderColor(variant: BrowserToolVariant): string {
 export function getVariantIconColor(variant: BrowserToolVariant): string {
 	switch (variant) {
 		case 'navigation':
-			return 'text-blue-500';
 		case 'interaction':
-			return 'text-purple-500';
 		case 'capture':
-			return 'text-green-500';
 		case 'evaluation':
-			return 'text-orange-500';
+			return 'text-blue-500';
 	}
 }
 
@@ -217,25 +211,25 @@ export function getMetaInfo<T extends BrowserToolName>(
 export function getToolTitle(toolName: BrowserToolName): string {
 	switch (toolName) {
 		case 'browser_navigate':
-			return 'Navigate';
+			return 'Navigating to';
 		case 'browser_click':
-			return 'Click';
+			return 'Clicking';
 		case 'browser_type':
-			return 'Type';
+			return 'Typing into';
 		case 'browser_fill':
-			return 'Fill';
+			return 'Filling';
 		case 'browser_screenshot':
-			return 'Screenshot';
+			return 'Taking screenshot';
 		case 'browser_get_content':
-			return 'Get Content';
+			return 'Getting content';
 		case 'browser_extract_text':
-			return 'Extract Text';
+			return 'Extracting text';
 		case 'browser_evaluate':
-			return 'Evaluate';
+			return 'Evaluating script';
 		case 'browser_wait_for_selector':
-			return 'Wait For Selector';
+			return 'Waiting for';
 		case 'browser_get_url':
-			return 'Get URL';
+			return 'Getting URL';
 		default:
 			const _exhaustive: never = toolName;
 			return toolName;
