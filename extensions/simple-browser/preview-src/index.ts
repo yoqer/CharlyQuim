@@ -151,6 +151,28 @@ function reload(): void {
 	iframe.src = iframe.src;
 }
 
+// Automation overlay elements
+const automationOverlay = document.getElementById('automation-overlay')!;
+const automationAction = automationOverlay.querySelector('.automation-action')!;
+const automationDetails = automationOverlay.querySelector('.automation-details')!;
+
+let automationTimeout: number | undefined;
+
+// Show automation activity overlay
+function showAutomationActivity(action: string, details?: string): void {
+	automationAction.textContent = action;
+	automationDetails.textContent = details || '';
+	automationOverlay.classList.add('visible');
+
+	// Auto-hide after 3 seconds
+	if (automationTimeout) {
+		clearTimeout(automationTimeout);
+	}
+	automationTimeout = window.setTimeout(() => {
+		automationOverlay.classList.remove('visible');
+	}, 3000);
+}
+
 window.addEventListener('message', e => {
 	switch (e.data.type) {
 		case 'focus':
@@ -162,6 +184,10 @@ window.addEventListener('message', e => {
 		case 'navigate':
 			// Navigate from extension (e.g., when show is called with new URL)
 			navigateToUrl(e.data.url);
+			break;
+		case 'automation-activity':
+			// Disabled for production - no automation overlays
+			// showAutomationActivity(e.data.action, e.data.details);
 			break;
 	}
 });

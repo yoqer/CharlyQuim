@@ -6,6 +6,13 @@
 import * as vscode from 'vscode';
 import { SimpleBrowserManager } from './simpleBrowserManager';
 import { SimpleBrowserView } from './simpleBrowserView';
+import { BrowserAutomationService } from './automation/browserAutomationService';
+import { registerNavigationCommands } from './automation/commands/navigationCommands';
+import { registerInteractionCommands } from './automation/commands/interactionCommands';
+import { registerCaptureCommands } from './automation/commands/captureCommands';
+import { registerEvaluationCommands } from './automation/commands/evaluationCommands';
+import { registerSessionCommands } from './automation/commands/sessionCommands';
+import { registerCookieCommands } from './automation/commands/cookieCommands';
 
 declare class URL {
 	constructor(input: string, base?: string | URL);
@@ -35,6 +42,9 @@ export function activate(context: vscode.ExtensionContext) {
 
 	const manager = new SimpleBrowserManager(context.extensionUri);
 	context.subscriptions.push(manager);
+
+	// Store manager globally for automation commands to access
+	(global as any).simpleBrowserManager = manager;
 
 	context.subscriptions.push(vscode.window.registerWebviewPanelSerializer(SimpleBrowserView.viewType, {
 		deserializeWebviewPanel: async (panel, state) => {
@@ -79,9 +89,20 @@ export function activate(context: vscode.ExtensionContext) {
 		schemes: ['http', 'https'],
 		label: vscode.l10n.t("Open in simple browser"),
 	}));
+
+	// Initialize browser automation
+	const automationService = new BrowserAutomationService(context);
+	context.subscriptions.push(automationService);
+
+	// Register automation commands
+	registerNavigationCommands(context, automationService);
+	registerInteractionCommands(context, automationService);
+	registerCaptureCommands(context, automationService);
+	registerEvaluationCommands(context, automationService);
+	registerSessionCommands(context, automationService);
+	registerCookieCommands(context, automationService);
 }
 
 function isWeb(): boolean {
-	// @ts-expect-error
 	return typeof navigator !== 'undefined' && vscode.env.uiKind === vscode.UIKind.Web;
 }

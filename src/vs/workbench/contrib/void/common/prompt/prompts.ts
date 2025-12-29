@@ -642,6 +642,166 @@ In all other cases, combine all edits to the same file into one \`edit_file\` ca
 	</kill_persistent_terminal>`,
 	},
 
+	// --- Browser automation (requires approval)
+
+	browser_navigate: {
+		name: 'browser_navigate',
+		description: `Navigate the built-in browser to a URL and wait for page load.
+
+Notes:
+- The browser session is managed automatically (do not pass a session id).
+- URL must include the protocol (http:// or https://).
+- Use browser_wait_for_selector after navigation for dynamic pages.`,
+		params: {
+			url: { description: 'URL to navigate to (must start with http:// or https://).' },
+			timeout: { description: 'Optional. Max wait time in ms (0-300000). Default: browserDefaultTimeout setting.' },
+			wait_until: { description: 'Optional. Load condition: "load", "domcontentloaded", "networkidle0", or "networkidle2". Default: "load".' },
+		},
+		example: `<browser_navigate>
+	<url>https://example.com</url>
+	<wait_until>domcontentloaded</wait_until>
+	</browser_navigate>`,
+	},
+
+	browser_click: {
+		name: 'browser_click',
+		description: `Click an element by CSS selector. Waits for the selector to be visible before clicking.
+
+Tips:
+- Prefer stable selectors (data-testid, aria-label, name) over fragile ones (nth-child).
+- If the click triggers navigation, follow with browser_wait_for_selector or browser_get_url.`,
+		params: {
+			selector: { description: 'CSS selector to click (e.g., button[type="submit"]).' },
+			timeout: { description: 'Optional. Max wait time in ms while waiting for the selector. Default: browserDefaultTimeout setting.' },
+		},
+		example: `<browser_click>
+	<selector>button[type="submit"]</selector>
+	</browser_click>`,
+	},
+
+	browser_type: {
+		name: 'browser_type',
+		description: `Type text into an element (character-by-character; dispatches keyboard events). Waits for the selector to be visible.
+
+Tips:
+- Use this when the page relies on key/input events.
+- For instant value assignment without key events, use browser_fill instead.`,
+		params: {
+			selector: { description: 'CSS selector to type into (e.g., input[name="q"]).' },
+			text: { description: 'Text to type.' },
+			timeout: { description: 'Optional. Max wait time in ms while waiting for the selector. Default: browserDefaultTimeout setting.' },
+			delay_ms: { description: 'Optional. Delay between keystrokes in ms (0-5000). Default: 0.' },
+		},
+		example: `<browser_type>
+	<selector>input#username</selector>
+	<text>alice@example.com</text>
+	<delay_ms>25</delay_ms>
+	</browser_type>`,
+	},
+
+	browser_fill: {
+		name: 'browser_fill',
+		description: `Fill an input by setting its value instantly (no per-keystroke events). Waits for the selector to be visible.
+
+Tips:
+- Fast for simple forms.
+- If the page requires key/input events to update state, prefer browser_type.`,
+		params: {
+			selector: { description: 'CSS selector of the input/textarea element.' },
+			value: { description: 'Value to set.' },
+			timeout: { description: 'Optional. Max wait time in ms while waiting for the selector. Default: browserDefaultTimeout setting.' },
+		},
+		example: `<browser_fill>
+	<selector>input#email</selector>
+	<value>alice@example.com</value>
+	</browser_fill>`,
+	},
+
+	browser_screenshot: {
+		name: 'browser_screenshot',
+		description: `Capture a screenshot of the current page. The tool result includes base64 image data (not printed in the assistant output).
+
+Tips:
+- Use browser_get_url to confirm you're on the expected page before capturing.
+- Use full_page for long pages.`,
+		params: {
+			full_page: { description: 'Optional. If true, captures the full scrollable page. Default: false.' },
+		},
+		example: `<browser_screenshot>
+	<full_page>true</full_page>
+	</browser_screenshot>`,
+	},
+
+	browser_get_content: {
+		name: 'browser_get_content',
+		description: `Get the page title and full HTML content.
+
+Tips:
+- Use this to inspect the DOM and choose accurate CSS selectors.
+- The assistant-facing HTML string may be truncated for readability, but the raw tool result contains the full HTML.`,
+		params: {},
+		example: `<browser_get_content>
+	</browser_get_content>`,
+	},
+
+	browser_extract_text: {
+		name: 'browser_extract_text',
+		description: `Extract visible text from an element by CSS selector. Waits for the selector to be visible.
+
+Tips:
+- Use browser_get_content if you need to discover the correct selector first.`,
+		params: {
+			selector: { description: 'CSS selector to extract text from.' },
+			timeout: { description: 'Optional. Max wait time in ms while waiting for the selector. Default: browserDefaultTimeout setting.' },
+		},
+		example: `<browser_extract_text>
+	<selector>h1</selector>
+	</browser_extract_text>`,
+	},
+
+	browser_evaluate: {
+		name: 'browser_evaluate',
+		description: `Execute JavaScript in the page context and return the result.
+
+Tips:
+- Keep scripts small and deterministic.
+- Prefer returning simple JSON-serializable values (string/number/boolean/object).`,
+		params: {
+			script: { description: 'JavaScript to evaluate (e.g., "document.title" or "Array.from(document.querySelectorAll(\\"a\\")).map(a => a.href)").' },
+		},
+		example: `<browser_evaluate>
+	<script>document.title</script>
+	</browser_evaluate>`,
+	},
+
+	browser_wait_for_selector: {
+		name: 'browser_wait_for_selector',
+		description: `Wait for an element matching a CSS selector to appear.
+
+Tips:
+- Use this to synchronize with dynamic pages before clicking/typing/extracting.
+- Set visible=true to wait for visibility (recommended for interactions).`,
+		params: {
+			selector: { description: 'CSS selector to wait for.' },
+			timeout: { description: 'Optional. Max wait time in ms. Default: browserDefaultTimeout setting.' },
+			visible: { description: 'Optional. If true, waits for the element to be visible. Default: true.' },
+			hidden: { description: 'Optional. If true, waits for the element to be hidden/removed. Default: false. Cannot be true together with visible.' },
+		},
+		example: `<browser_wait_for_selector>
+	<selector>.results</selector>
+	<timeout>30000</timeout>
+	<visible>true</visible>
+	</browser_wait_for_selector>`,
+	},
+
+	browser_get_url: {
+		name: 'browser_get_url',
+		description: `Get the current page URL from the built-in browser.`,
+		params: {},
+		example: `<browser_get_url>
+	</browser_get_url>`,
+	},
+
 	update_todo_list: {
 		name: 'update_todo_list',
 		description: `Replace the entire TODO list with an updated checklist. Always provide the full list.

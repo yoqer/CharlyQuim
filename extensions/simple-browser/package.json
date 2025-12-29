@@ -40,6 +40,76 @@
         "command": "simpleBrowser.show",
         "title": "Show",
         "category": "Simple Browser"
+      },
+      {
+        "command": "simpleBrowser.automation.createSession",
+        "title": "Create Automation Session",
+        "category": "Browser Automation"
+      },
+      {
+        "command": "simpleBrowser.automation.closeSession",
+        "title": "Close Automation Session",
+        "category": "Browser Automation"
+      },
+      {
+        "command": "simpleBrowser.automation.listSessions",
+        "title": "List Automation Sessions",
+        "category": "Browser Automation"
+      },
+      {
+        "command": "simpleBrowser.automation.navigate",
+        "title": "Navigate to URL",
+        "category": "Browser Automation"
+      },
+      {
+        "command": "simpleBrowser.automation.click",
+        "title": "Click Element",
+        "category": "Browser Automation"
+      },
+      {
+        "command": "simpleBrowser.automation.type",
+        "title": "Type Text",
+        "category": "Browser Automation"
+      },
+      {
+        "command": "simpleBrowser.automation.screenshot",
+        "title": "Take Screenshot",
+        "category": "Browser Automation"
+      },
+      {
+        "command": "simpleBrowser.automation.getContent",
+        "title": "Get Page Content",
+        "category": "Browser Automation"
+      },
+      {
+        "command": "simpleBrowser.automation.evaluate",
+        "title": "Evaluate JavaScript",
+        "category": "Browser Automation"
+      },
+      {
+        "command": "simpleBrowser.automation.getStats",
+        "title": "View Automation Statistics",
+        "category": "Browser Automation"
+      },
+      {
+        "command": "simpleBrowser.automation.back",
+        "title": "Go Back",
+        "category": "Browser Automation"
+      },
+      {
+        "command": "simpleBrowser.automation.forward",
+        "title": "Go Forward",
+        "category": "Browser Automation"
+      },
+      {
+        "command": "simpleBrowser.automation.reload",
+        "title": "Reload Page",
+        "category": "Browser Automation"
+      },
+      {
+        "command": "simpleBrowser.automation.switchSession",
+        "title": "Switch Session",
+        "category": "Browser Automation"
       }
     ],
     "configuration": [

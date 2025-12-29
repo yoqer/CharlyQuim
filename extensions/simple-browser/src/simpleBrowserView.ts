@@ -37,6 +37,8 @@ export class SimpleBrowserView extends Disposable {
 	private readonly _onDidDispose = this._register(new vscode.EventEmitter<void>());
 	public readonly onDispose = this._onDidDispose.event;
 
+	private currentUrl: string = '';
+
 	public static create(
 		extensionUri: vscode.Uri,
 		url: string,
@@ -106,6 +108,7 @@ export class SimpleBrowserView extends Disposable {
 	}
 
 	public show(url: string, options?: ShowOptions) {
+		this.currentUrl = url;
 		// Only regenerate HTML on first call
 		if (!this._isInitialized) {
 			this._webviewPanel.webview.html = this.getHtml(url);
@@ -118,6 +121,35 @@ export class SimpleBrowserView extends Disposable {
 			});
 		}
 		this._webviewPanel.reveal(options?.viewColumn, options?.preserveFocus);
+	}
+
+	/**
+	 * Show automation activity overlay
+	 * Disabled for production - no popups
+	 */
+	public showAutomationActivity(action: string, details?: string) {
+		// Disabled to prevent distracting UI popups during automation
+		// this._webviewPanel.webview.postMessage({
+		// 	type: 'automation-activity',
+		// 	action,
+		// 	details
+		// });
+	}
+
+	/**
+	 * Sync with automation navigation
+	 */
+	public syncAutomationNavigation(url: string) {
+		if (url && url !== this.currentUrl) {
+			this.show(url);
+		}
+	}
+
+	/**
+	 * Get current URL
+	 */
+	public getCurrentUrl(): string {
+		return this.currentUrl;
 	}
 
 	private getHtml(url: string) {
@@ -189,6 +221,13 @@ export class SimpleBrowserView extends Disposable {
 				</header>
 				<div class="content">
 					<div class="iframe-focused-alert">${vscode.l10n.t("Focus Lock")}</div>
+					<div class="automation-overlay" id="automation-overlay">
+						<div class="automation-indicator">
+							<i class="codicon codicon-zap"></i>
+							<span class="automation-action"></span>
+							<span class="automation-details"></span>
+						</div>
+					</div>
 					<iframe sandbox="allow-scripts allow-forms allow-same-origin allow-downloads allow-popups allow-popups-to-escape-sandbox allow-modals allow-orientation-lock allow-pointer-lock allow-presentation allow-top-navigation allow-top-navigation-by-user-activation allow-storage-access-by-user-activation"></iframe>
 				</div>
 

@@ -1,6 +1,7 @@
 import { CancellationToken } from '../../../../base/common/cancellation.js'
 import { URI } from '../../../../base/common/uri.js'
 import { IFileService } from '../../../../platform/files/common/files.js'
+import { ICommandService } from '../../../../platform/commands/common/commands.js'
 import { registerSingleton, InstantiationType } from '../../../../platform/instantiation/common/extensions.js'
 import { createDecorator, IInstantiationService } from '../../../../platform/instantiation/common/instantiation.js'
 import { IWorkspaceContextService } from '../../../../platform/workspace/common/workspace.js'
@@ -8,7 +9,7 @@ import { QueryBuilder } from '../../../services/search/common/queryBuilder.js'
 import { ISearchService } from '../../../services/search/common/search.js'
 import { IEditCodeService } from './editCodeServiceInterface.js'
 import { ITerminalToolService } from './terminalToolService.js'
-import { LintErrorItem, BuiltinToolCallParams, BuiltinToolResultType, BuiltinToolName } from '../common/toolsServiceTypes.js'
+import { LintErrorItem, BuiltinToolCallParams, BuiltinToolResultType, BuiltinToolName, NavigationWaitCondition } from '../common/toolsServiceTypes.js'
 import { parseMarkdownChecklist, validateTodoItems } from '../common/chatThreadServiceTypes.js'
 import { IVoidModelService } from '../common/voidModelService.js'
 import { EndOfLinePreference } from '../../../../editor/common/model.js'
@@ -21,6 +22,7 @@ import { MAX_CHILDREN_URIs_PAGE, MAX_FILE_CHARS_PAGE, MAX_TERMINAL_BG_COMMAND_TI
 import { IVoidSettingsService } from '../common/voidSettingsService.js'
 import { generateUuid } from '../../../../base/common/uuid.js'
 import { IMetricsService } from '../common/metricsService.js'
+import type { IAutomationResult } from '../../../../platform/browserAutomation/common/browserAutomation.js'
 
 
 // tool use for AI
@@ -126,6 +128,63 @@ const checkIfIsFolder = (uriStr: string) => {
 	return false
 }
 
+const MAX_BROWSER_TIMEOUT_MS = 300_000
+const MAX_BROWSER_TYPE_DELAY_MS = 5_000
+
+type BrowserNavigationOptions = { timeout?: number; waitUntil?: NavigationWaitCondition }
+type BrowserWaitForSelectorOptions = { visible?: boolean; hidden?: boolean; timeout?: number }
+type BrowserTypeOptions = { delay?: number }
+type BrowserScreenshotOptions = { fullPage?: boolean }
+
+const validateTimeout = (timeoutUnknown: unknown, defaultTimeout: number) => {
+	const safeDefault = Number.isFinite(defaultTimeout) ? Math.max(0, Math.min(MAX_BROWSER_TIMEOUT_MS, Math.floor(defaultTimeout))) : 30_000
+	if (isFalsy(timeoutUnknown)) return safeDefault
+
+	const timeout = typeof timeoutUnknown === 'number' ? timeoutUnknown : Number.parseInt(timeoutUnknown + '', 10)
+	if (!Number.isFinite(timeout) || !Number.isInteger(timeout)) {
+		throw new Error(`Invalid LLM output format: timeout must be an integer number of milliseconds. Full value: ${JSON.stringify(timeoutUnknown)}.`)
+	}
+	if (timeout < 0 || timeout > MAX_BROWSER_TIMEOUT_MS) {
+		throw new Error(`Invalid timeout: ${timeout}. Must be between 0 and ${MAX_BROWSER_TIMEOUT_MS} ms.`)
+	}
+	return timeout
+}
+
+const validateWaitUntil = (waitUntilUnknown: unknown, opts: { default: NavigationWaitCondition }) => {
+	if (isFalsy(waitUntilUnknown)) return opts.default
+
+	const waitUntilStr = validateStr('wait_until', waitUntilUnknown).trim().toLowerCase()
+	if (waitUntilStr === 'load') return 'load'
+	if (waitUntilStr === 'domcontentloaded') return 'domcontentloaded'
+	if (waitUntilStr === 'networkidle0') return 'networkidle0'
+	if (waitUntilStr === 'networkidle2') return 'networkidle2'
+
+	throw new Error(`Invalid wait_until: "${waitUntilStr}". Must be one of: load, domcontentloaded, networkidle0, networkidle2.`)
+}
+
+const validateSelector = (selectorUnknown: unknown) => {
+	const selector = validateStr('selector', selectorUnknown).trim()
+	if (!selector) {
+		throw new Error(`Invalid LLM output format: selector must be a non-empty string.`)
+	}
+	if (selector.length > 500) {
+		throw new Error(`Selector too long (${selector.length} chars). Keep it under 500 characters.`)
+	}
+	return selector
+}
+
+const validateTypeDelayMs = (delayUnknown: unknown, opts: { default: number }) => {
+	if (isFalsy(delayUnknown)) return opts.default
+	const delayMs = typeof delayUnknown === 'number' ? delayUnknown : Number.parseInt(delayUnknown + '', 10)
+	if (!Number.isFinite(delayMs) || !Number.isInteger(delayMs)) {
+		throw new Error(`Invalid LLM output format: delay_ms must be an integer number of milliseconds. Full value: ${JSON.stringify(delayUnknown)}.`)
+	}
+	if (delayMs < 0 || delayMs > MAX_BROWSER_TYPE_DELAY_MS) {
+		throw new Error(`Invalid delay_ms: ${delayMs}. Must be between 0 and ${MAX_BROWSER_TYPE_DELAY_MS} ms.`)
+	}
+	return delayMs
+}
+
 export interface IToolsService {
 	readonly _serviceBrand: undefined;
 	validateParams: ValidateBuiltinParams;
@@ -153,6 +212,7 @@ export class ToolsService implements IToolsService {
 		@IWorkspaceContextService workspaceContextService: IWorkspaceContextService,
 		@ISearchService searchService: ISearchService,
 		@IInstantiationService instantiationService: IInstantiationService,
+		@ICommandService private readonly commandService: ICommandService,
 		@IVoidModelService voidModelService: IVoidModelService,
 		@IEditCodeService editCodeService: IEditCodeService,
 		@ITerminalToolService private readonly terminalToolService: ITerminalToolService,
@@ -298,6 +358,82 @@ export class ToolsService implements IToolsService {
 				return { persistentTerminalId };
 			},
 
+			// --- browser automation
+
+			browser_navigate: (params: RawToolParamsObj): BuiltinToolCallParams['browser_navigate'] => {
+				const url = validateStr('url', params.url).trim()
+				if (!url.startsWith('http://') && !url.startsWith('https://')) {
+					throw new Error(`URL must start with http:// or https://, got: ${url}`)
+				}
+
+				const defaultTimeout = this.voidSettingsService.state.globalSettings.browserDefaultTimeout
+				const timeout = validateTimeout(params.timeout, defaultTimeout)
+				const waitUntil = validateWaitUntil(params.wait_until, { default: 'load' })
+
+				return { url, timeout, waitUntil }
+			},
+
+			browser_click: (params: RawToolParamsObj): BuiltinToolCallParams['browser_click'] => {
+				const selector = validateSelector(params.selector)
+				const defaultTimeout = this.voidSettingsService.state.globalSettings.browserDefaultTimeout
+				const timeout = validateTimeout(params.timeout, defaultTimeout)
+				return { selector, timeout }
+			},
+
+			browser_type: (params: RawToolParamsObj): BuiltinToolCallParams['browser_type'] => {
+				const selector = validateSelector(params.selector)
+				const text = validateStr('text', params.text)
+				const defaultTimeout = this.voidSettingsService.state.globalSettings.browserDefaultTimeout
+				const timeout = validateTimeout(params.timeout, defaultTimeout)
+				const delayMs = validateTypeDelayMs(params.delay_ms, { default: 0 })
+				return { selector, text, timeout, delayMs }
+			},
+
+			browser_fill: (params: RawToolParamsObj): BuiltinToolCallParams['browser_fill'] => {
+				const selector = validateSelector(params.selector)
+				const value = validateStr('value', params.value)
+				const defaultTimeout = this.voidSettingsService.state.globalSettings.browserDefaultTimeout
+				const timeout = validateTimeout(params.timeout, defaultTimeout)
+				return { selector, value, timeout }
+			},
+
+			browser_screenshot: (params: RawToolParamsObj): BuiltinToolCallParams['browser_screenshot'] => {
+				const fullPage = validateBoolean(params.full_page, { default: false })
+				return { fullPage }
+			},
+
+			browser_get_content: (_params: RawToolParamsObj): BuiltinToolCallParams['browser_get_content'] => {
+				return {}
+			},
+
+			browser_extract_text: (params: RawToolParamsObj): BuiltinToolCallParams['browser_extract_text'] => {
+				const selector = validateSelector(params.selector)
+				const defaultTimeout = this.voidSettingsService.state.globalSettings.browserDefaultTimeout
+				const timeout = validateTimeout(params.timeout, defaultTimeout)
+				return { selector, timeout }
+			},
+
+			browser_evaluate: (params: RawToolParamsObj): BuiltinToolCallParams['browser_evaluate'] => {
+				const script = validateStr('script', params.script)
+				return { script }
+			},
+
+			browser_wait_for_selector: (params: RawToolParamsObj): BuiltinToolCallParams['browser_wait_for_selector'] => {
+				const selector = validateSelector(params.selector)
+				const defaultTimeout = this.voidSettingsService.state.globalSettings.browserDefaultTimeout
+				const timeout = validateTimeout(params.timeout, defaultTimeout)
+				const visible = validateBoolean(params.visible, { default: true })
+				const hidden = validateBoolean(params.hidden, { default: false })
+				if (visible && hidden) {
+					throw new Error(`Invalid wait_for_selector options: "visible" and "hidden" cannot both be true.`)
+				}
+				return { selector, timeout, visible, hidden }
+			},
+
+			browser_get_url: (_params: RawToolParamsObj): BuiltinToolCallParams['browser_get_url'] => {
+				return {}
+			},
+
 			update_todo_list: (params: RawToolParamsObj): BuiltinToolCallParams['update_todo_list'] => {
 				const todos = validateStr('todos', params.todos);
 				return { todos };
@@ -305,6 +441,77 @@ export class ToolsService implements IToolsService {
 
 		}
 
+
+		const browserAutomationHintedError = (toolName: string, rawMessage: string) => {
+			const msg = rawMessage.trim()
+			const lower = msg.toLowerCase()
+
+			if (lower.includes('no active session') || lower.includes('session not found')) {
+				return `${msg} Try starting with browser_navigate first.`
+			}
+
+			if (lower.includes('timeout')) {
+				return `${msg} Consider increasing the timeout (ms) parameter.`
+			}
+
+			if (lower.includes('no node found for selector') || lower.includes('failed to find') || lower.includes('selector')) {
+				return `${msg} If the selector seems wrong, use browser_get_content to inspect the DOM and choose a more stable CSS selector.`
+			}
+
+			if (lower.includes('chrome/chromium') && lower.includes('install')) {
+				return msg
+			}
+
+			return `${toolName} failed: ${msg}`
+		}
+
+		const browserAutomationErrorFromThrown = (commandId: string, error: unknown) => {
+			const raw = error instanceof Error ? error.message : String(error)
+			const lower = raw.toLowerCase()
+
+			if (lower.includes('command') && lower.includes('not found')) {
+				return `Browser automation command "${commandId}" is unavailable. Make sure the built-in "simple-browser" extension is enabled.`
+			}
+
+			return `Browser automation command "${commandId}" failed: ${raw}`
+		}
+
+		const executeBrowserAutomationCommand = async <T>(commandId: string, ...args: unknown[]): Promise<Awaited<T> | undefined> => {
+			try {
+				return await this.commandService.executeCommand<T>(commandId, ...args)
+			} catch (error) {
+				throw new Error(browserAutomationErrorFromThrown(commandId, error))
+			}
+		}
+
+		const executeBrowserAutomationResult = async <T>(toolName: string, commandId: string, ...args: unknown[]): Promise<T> => {
+			const result = await executeBrowserAutomationCommand<IAutomationResult<T>>(commandId, ...args)
+
+			if (!result) {
+				throw new Error(`Browser automation command "${commandId}" returned no result. Make sure the built-in "simple-browser" extension is enabled.`)
+			}
+			if (!result.success) {
+				throw new Error(browserAutomationHintedError(toolName, result.error || 'Unknown error'))
+			}
+
+			return result.data as T
+		}
+
+		const ensureBrowserSession = async (toolNameForErr: string) => {
+			const urlResult = await executeBrowserAutomationCommand<IAutomationResult<string> | undefined>('simpleBrowser.automation.getUrl', undefined)
+
+			if (urlResult?.success) {
+				return
+			}
+
+			const errLower = (urlResult?.error ?? '').toLowerCase()
+			if (errLower.includes('no active session') || errLower.includes('session not found')) {
+				await executeBrowserAutomationResult<string>(toolNameForErr, 'simpleBrowser.automation.createSession', 'about:blank')
+				return
+			}
+
+			throw new Error(browserAutomationHintedError(toolNameForErr, urlResult?.error || 'Failed to determine browser session state'))
+		}
 
 		this.callTool = {
 			read_file: async ({ uri, startLine, endLine, pageNumber }) => {
@@ -537,53 +744,190 @@ export class ToolsService implements IToolsService {
 				}
 			},
 
-		update_todo_list: async (params: BuiltinToolCallParams['update_todo_list']) => {
-			// 1. Input validation
-			if (!params.todos || params.todos.trim() === '') {
-				throw new Error('TODO list cannot be empty');
-			}
-			if (params.todos.length > 10000) {
-				throw new Error('TODO list too long (max 10,000 chars)');
-			}
+			// --- browser automation
 
-			// 2. Parse markdown checklist using shared utility
-			const todoItems = parseMarkdownChecklist(params.todos);
+			browser_navigate: async ({ url, timeout, waitUntil }) => {
+				this._acquireMutatingLock('browser_navigate')
+				try {
+					await ensureBrowserSession('browser_navigate')
 
-		// 3. Count validation
-		if (todoItems.length === 0) {
-			throw new Error('No valid TODO items found. Use format: [ ], [x], or [-]');
-		}
-		if (todoItems.length > 20) {
-			throw new Error('Too many items (max 20). Break into smaller tasks.');
-		}
-
-			// 4. Content length validation
-			for (const [i, item] of todoItems.entries()) {
-				if (item.content.length > 500) {
-					throw new Error(`Item ${i + 1} too long (max 500 chars)`);
+					const options: BrowserNavigationOptions = { timeout, waitUntil }
+					const navigatedUrl = await executeBrowserAutomationResult<string>('browser_navigate', 'simpleBrowser.automation.navigate', undefined, url, options)
+					return { result: { url: navigatedUrl || url } }
+				} finally {
+					this._releaseMutatingLock()
 				}
-			}
+			},
 
-			// 5. Structure validation
-			const validation = validateTodoItems(todoItems);
-			if (!validation.valid) {
-				throw new Error(validation.error || 'Invalid TODO items');
-			}
+			browser_click: async ({ selector, timeout }) => {
+				this._acquireMutatingLock('browser_click')
+				try {
+					await ensureBrowserSession('browser_click')
 
-			// Capture metrics
-			this._metricsService.capture('Update TODO List', {
-				todosCount: todoItems.length,
-				completedCount: todoItems.filter(t => t.status === 'completed').length,
-			});
+					const waitOptions: BrowserWaitForSelectorOptions = { timeout, visible: true }
+					await executeBrowserAutomationResult<void>('browser_click', 'simpleBrowser.automation.waitForSelector', undefined, selector, waitOptions)
+					await executeBrowserAutomationResult<void>('browser_click', 'simpleBrowser.automation.click', undefined, selector)
+					return { result: { selector } }
+				} finally {
+					this._releaseMutatingLock()
+				}
+			},
 
-			// Store in current thread (handled by chatThreadService)
-			const result = {
-				success: true,
-				todosCount: todoItems.length
-			};
+			browser_type: async ({ selector, text, timeout, delayMs }) => {
+				this._acquireMutatingLock('browser_type')
+				try {
+					await ensureBrowserSession('browser_type')
 
-			return { result };
-		},
+					const waitOptions: BrowserWaitForSelectorOptions = { timeout, visible: true }
+					await executeBrowserAutomationResult<void>('browser_type', 'simpleBrowser.automation.waitForSelector', undefined, selector, waitOptions)
+
+					const typeOptions: BrowserTypeOptions | undefined = delayMs > 0 ? { delay: delayMs } : undefined
+					await executeBrowserAutomationResult<void>('browser_type', 'simpleBrowser.automation.type', undefined, selector, text, typeOptions)
+					return { result: { selector, textLength: text.length } }
+				} finally {
+					this._releaseMutatingLock()
+				}
+			},
+
+			browser_fill: async ({ selector, value, timeout }) => {
+				this._acquireMutatingLock('browser_fill')
+				try {
+					await ensureBrowserSession('browser_fill')
+
+					const waitOptions: BrowserWaitForSelectorOptions = { timeout, visible: true }
+					await executeBrowserAutomationResult<void>('browser_fill', 'simpleBrowser.automation.waitForSelector', undefined, selector, waitOptions)
+					await executeBrowserAutomationResult<void>('browser_fill', 'simpleBrowser.automation.fill', undefined, selector, value)
+					return { result: { selector } }
+				} finally {
+					this._releaseMutatingLock()
+				}
+			},
+
+			browser_screenshot: async ({ fullPage }) => {
+				this._acquireMutatingLock('browser_screenshot')
+				try {
+					await ensureBrowserSession('browser_screenshot')
+
+					const options: BrowserScreenshotOptions | undefined = fullPage ? { fullPage } : undefined
+					const base64 = await executeBrowserAutomationResult<string>('browser_screenshot', 'simpleBrowser.automation.screenshot', undefined, options)
+					return { result: { base64: base64 || '' } }
+				} finally {
+					this._releaseMutatingLock()
+				}
+			},
+
+			browser_get_content: async (_params: BuiltinToolCallParams['browser_get_content']) => {
+				this._acquireMutatingLock('browser_get_content')
+				try {
+					await ensureBrowserSession('browser_get_content')
+
+					const title = await executeBrowserAutomationResult<string>('browser_get_content', 'simpleBrowser.automation.getTitle', undefined)
+					const html = await executeBrowserAutomationResult<string>('browser_get_content', 'simpleBrowser.automation.getContent', undefined)
+					return { result: { title: title || '', html: html || '' } }
+				} finally {
+					this._releaseMutatingLock()
+				}
+			},
+
+			browser_extract_text: async ({ selector, timeout }) => {
+				this._acquireMutatingLock('browser_extract_text')
+				try {
+					await ensureBrowserSession('browser_extract_text')
+
+					const waitOptions: BrowserWaitForSelectorOptions = { timeout, visible: true }
+					await executeBrowserAutomationResult<void>('browser_extract_text', 'simpleBrowser.automation.waitForSelector', undefined, selector, waitOptions)
+
+					const text = await executeBrowserAutomationResult<string>('browser_extract_text', 'simpleBrowser.automation.extractText', undefined, selector)
+					return { result: { selector, text: text || '' } }
+				} finally {
+					this._releaseMutatingLock()
+				}
+			},
+
+			browser_evaluate: async ({ script }) => {
+				this._acquireMutatingLock('browser_evaluate')
+				try {
+					await ensureBrowserSession('browser_evaluate')
+
+					const result = await executeBrowserAutomationResult<unknown>('browser_evaluate', 'simpleBrowser.automation.evaluate', undefined, script)
+					return { result: { result } }
+				} finally {
+					this._releaseMutatingLock()
+				}
+			},
+
+			browser_wait_for_selector: async ({ selector, timeout, visible, hidden }) => {
+				this._acquireMutatingLock('browser_wait_for_selector')
+				try {
+					await ensureBrowserSession('browser_wait_for_selector')
+
+					const options: BrowserWaitForSelectorOptions = { timeout, visible, hidden }
+					await executeBrowserAutomationResult<void>('browser_wait_for_selector', 'simpleBrowser.automation.waitForSelector', undefined, selector, options)
+					return { result: { selector } }
+				} finally {
+					this._releaseMutatingLock()
+				}
+			},
+
+			browser_get_url: async (_params: BuiltinToolCallParams['browser_get_url']) => {
+				this._acquireMutatingLock('browser_get_url')
+				try {
+					await ensureBrowserSession('browser_get_url')
+
+					const url = await executeBrowserAutomationResult<string>('browser_get_url', 'simpleBrowser.automation.getUrl', undefined)
+					return { result: { url: url || '' } }
+				} finally {
+					this._releaseMutatingLock()
+				}
+			},
+
+			update_todo_list: async (params: BuiltinToolCallParams['update_todo_list']) => {
+				// 1. Input validation
+				if (!params.todos || params.todos.trim() === '') {
+					throw new Error('TODO list cannot be empty');
+				}
+				if (params.todos.length > 10000) {
+					throw new Error('TODO list too long (max 10,000 chars)');
+				}
+
+				// 2. Parse markdown checklist using shared utility
+				const todoItems = parseMarkdownChecklist(params.todos);
+
+				// 3. Count validation
+				if (todoItems.length === 0) {
+					throw new Error('No valid TODO items found. Use format: [ ], [x], or [-]');
+				}
+				if (todoItems.length > 20) {
+					throw new Error('Too many items (max 20). Break into smaller tasks.');
+				}
+
+				// 4. Content length validation
+				for (const [i, item] of todoItems.entries()) {
+					if (item.content.length > 500) {
+						throw new Error(`Item ${i + 1} too long (max 500 chars)`);
+					}
+				}
+
+				// 5. Structure validation
+				const validation = validateTodoItems(todoItems);
+				if (!validation.valid) {
+					throw new Error(validation.error || 'Invalid TODO items');
+				}
+
+				// Capture metrics
+				this._metricsService.capture('Update TODO List', {
+					todosCount: todoItems.length,
+					completedCount: todoItems.filter(t => t.status === 'completed').length,
+				});
+
+				// Store in current thread (handled by chatThreadService)
+				const result = {
+					success: true,
+					todosCount: todoItems.length
+				};
+
+				return { result };
+			},
 		}
 
 
@@ -594,6 +938,27 @@ export class ToolsService implements IToolsService {
 				.map((e, i) => `Error ${i + 1}:\nLines Affected: ${e.startLineNumber}-${e.endLineNumber}\nError message:${e.message}`)
 				.join('\n\n')
 				.substring(0, MAX_FILE_CHARS_PAGE)
+		}
+
+		const MAX_BROWSER_RESULT_CHARS_FOR_LLM = 5_000
+
+		const truncateForLLM = (s: string, maxChars: number = MAX_BROWSER_RESULT_CHARS_FOR_LLM) => {
+			if (s.length <= maxChars) return s
+			return s.substring(0, maxChars) + '\n\n... (truncated)'
+		}
+
+		const formatEvalResultForLLM = (value: unknown) => {
+			if (value === null) return 'null'
+			if (value === undefined) return 'undefined'
+			if (typeof value === 'string') return value
+			if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') return String(value)
+
+			try {
+				const json = JSON.stringify(value, null, 2)
+				return json === undefined ? String(value) : json
+			} catch {
+				return '[Unserializable result]'
+			}
 		}
 
 		// given to the LLM after the call for successful tool calls
@@ -686,6 +1051,46 @@ export class ToolsService implements IToolsService {
 			},
 			kill_persistent_terminal: (params, _result) => {
 				return `Successfully closed terminal "${params.persistentTerminalId}".`;
+			},
+
+			// --- browser automation
+			browser_navigate: (_params, result) => {
+				return `Successfully navigated to ${result.url}`
+			},
+			browser_click: (params, _result) => {
+				return `Clicked "${params.selector}".`
+			},
+			browser_type: (params, result) => {
+				const delayStr = params.delayMs > 0 ? ` (delay ${params.delayMs}ms)` : ''
+				return `Typed ${result.textLength} characters into "${params.selector}"${delayStr}.`
+			},
+			browser_fill: (params, _result) => {
+				return `Filled "${params.selector}".`
+			},
+			browser_screenshot: (params, result) => {
+				const kind = params.fullPage ? 'full page' : 'viewport'
+				const sizeKB = (result.base64.length / 1024).toFixed(1)
+				return `Screenshot captured (${kind}). Base64 size: ~${sizeKB} KB.`
+			},
+			browser_get_content: (_params, result) => {
+				const truncatedHtml = truncateForLLM(result.html)
+				return `Page Title: ${result.title}\n\nHTML Content:\n\`\`\`html\n${truncatedHtml}\n\`\`\``
+			},
+			browser_extract_text: (params, result) => {
+				const truncatedText = truncateForLLM(result.text)
+				return `Extracted text from "${params.selector}":\n\`\`\`\n${truncatedText}\n\`\`\``
+			},
+			browser_evaluate: (_params, result) => {
+				const formatted = formatEvalResultForLLM(result.result)
+				const truncated = truncateForLLM(formatted)
+				return `JavaScript result:\n\`\`\`\n${truncated}\n\`\`\``
+			},
+			browser_wait_for_selector: (params, result) => {
+				const condition = params.visible ? ' (visible)' : params.hidden ? ' (hidden)' : ''
+				return `Selector "${result.selector}" found${condition}.`
+			},
+			browser_get_url: (_params, result) => {
+				return `Current page URL: ${result.url}`
 			},
 
 			update_todo_list: (params, result) => {

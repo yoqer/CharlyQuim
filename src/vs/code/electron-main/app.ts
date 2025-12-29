@@ -32,6 +32,8 @@ import { IConfigurationService } from '../../platform/configuration/common/confi
 import { ElectronExtensionHostDebugBroadcastChannel } from '../../platform/debug/electron-main/extensionHostDebugIpc.js';
 import { IDiagnosticsService } from '../../platform/diagnostics/common/diagnostics.js';
 import { DiagnosticsMainService, IDiagnosticsMainService } from '../../platform/diagnostics/electron-main/diagnosticsMainService.js';
+import { BrowserAutomationService } from '../../platform/browserAutomation/electron-main/browserAutomationService.js';
+import { BrowserAutomationChannel } from '../../platform/browserAutomation/electron-main/browserAutomationChannel.js';
 import { DialogMainService, IDialogMainService } from '../../platform/dialogs/electron-main/dialogMainService.js';
 import { IEncryptionMainService } from '../../platform/encryption/common/encryptionService.js';
 import { EncryptionMainService } from '../../platform/encryption/electron-main/encryptionMainService.js';
@@ -1225,6 +1227,12 @@ export class CodeApplication extends Disposable {
 		// Keyboard Layout
 		const keyboardLayoutChannel = ProxyChannel.fromService(accessor.get(IKeyboardLayoutMainService), disposables);
 		mainProcessElectronServer.registerChannel('keyboardLayout', keyboardLayoutChannel);
+
+		// Browser Automation
+		const browserAutomationService = new BrowserAutomationService();
+		browserAutomationService.initialize().catch(err => this.logService.error('Failed to initialize browser automation:', err));
+		const browserAutomationChannel = disposables.add(new BrowserAutomationChannel(browserAutomationService));
+		mainProcessElectronServer.registerChannel('browserAutomation', browserAutomationChannel);
 
 		// Native host (main & shared process)
 		this.nativeHostMainService = accessor.get(INativeHostMainService);

@@ -1763,6 +1763,17 @@ const titleOfBuiltinToolName = {
 	'open_persistent_terminal': { done: 'Opened', proposed: 'Open', running: loadingTitleWrapper('Opened') },
 	'kill_persistent_terminal': { done: 'Killed', proposed: 'Kill', running: loadingTitleWrapper('Killed') },
 
+	'browser_navigate': { done: 'Navigated', proposed: 'Navigate', running: loadingTitleWrapper('Navigating') },
+	'browser_click': { done: 'Clicked', proposed: 'Click', running: loadingTitleWrapper('Clicking') },
+	'browser_type': { done: 'Typed', proposed: 'Type', running: loadingTitleWrapper('Typing') },
+	'browser_fill': { done: 'Filled', proposed: 'Fill', running: loadingTitleWrapper('Filling') },
+	'browser_screenshot': { done: 'Captured', proposed: 'Capture', running: loadingTitleWrapper('Capturing') },
+	'browser_get_content': { done: 'Got content', proposed: 'Get content', running: loadingTitleWrapper('Getting content') },
+	'browser_extract_text': { done: 'Extracted text', proposed: 'Extract text', running: loadingTitleWrapper('Extracting text') },
+	'browser_evaluate': { done: 'Evaluated', proposed: 'Evaluate', running: loadingTitleWrapper('Evaluating') },
+	'browser_wait_for_selector': { done: 'Waited', proposed: 'Wait', running: loadingTitleWrapper('Waiting') },
+	'browser_get_url': { done: 'Got URL', proposed: 'Get URL', running: loadingTitleWrapper('Getting URL') },
+
 	'read_lint_errors': { done: 'Read errors', proposed: 'Read errors', running: loadingTitleWrapper('Read errors') },
 	'search_in_file': { done: 'Searched file', proposed: 'Search in file', running: loadingTitleWrapper('Searched file') },
 	'update_todo_list': { done: 'Updated TODO list', proposed: 'Update TODO list', running: loadingTitleWrapper('Updated TODO list') },
@@ -1831,9 +1842,17 @@ const getTitle = (toolMessage: Pick<ChatMessage & { role: 'tool' }, 'name' | 'ty
 	// built-in title
 	else {
 		const toolName = t.name as BuiltinToolName
-		if (t.type === 'success') return titleOfBuiltinToolName[toolName].done
-		if (t.type === 'running_now') return titleOfBuiltinToolName[toolName].running
-		return titleOfBuiltinToolName[toolName].proposed
+		const toolTitleInfo = (titleOfBuiltinToolName as any)[toolName] as typeof titleOfBuiltinToolName[BuiltinToolName] | undefined
+		if (!toolTitleInfo) {
+			// If a tool name is present in `builtinToolNames` but missing from the UI title map,
+			// fall back to the raw tool name instead of crashing the chat UI.
+			if (t.type === 'running_now') return loadingTitleWrapper(toolName)
+			return toolName
+		}
+
+		if (t.type === 'success') return toolTitleInfo.done
+		if (t.type === 'running_now') return toolTitleInfo.running
+		return toolTitleInfo.proposed
 	}
 }
 
@@ -2015,6 +2034,13 @@ const toolNameToDesc = (toolName: BuiltinToolName, _toolParams: BuiltinToolCallP
 					}
 					return { desc1: '' }
 				},
+
+				'browser_get_content': () => {
+					return { desc1: 'current page' }
+				},
+				'browser_get_url': () => {
+					return { desc1: 'current page' }
+				},
 			}
 			try {
 				return x[toolName]?.() || { desc1: '' }
@@ -2106,6 +2132,64 @@ const toolNameToDesc = (toolName: BuiltinToolName, _toolParams: BuiltinToolCallP
 		'kill_persistent_terminal': () => {
 			const toolParams = _toolParams as BuiltinToolCallParams['kill_persistent_terminal']
 			return { desc1: toolParams.persistentTerminalId }
+		},
+
+		// --- browser automation
+		'browser_navigate': () => {
+			const toolParams = _toolParams as BuiltinToolCallParams['browser_navigate']
+			return {
+				desc1: toolParams.url,
+				desc1Info: `waitUntil=${toolParams.waitUntil}; timeout=${toolParams.timeout}ms`,
+			}
+		},
+		'browser_click': () => {
+			const toolParams = _toolParams as BuiltinToolCallParams['browser_click']
+			return {
+				desc1: toolParams.selector,
+				desc1Info: `timeout=${toolParams.timeout}ms`,
+			}
+		},
+		'browser_type': () => {
+			const toolParams = _toolParams as BuiltinToolCallParams['browser_type']
+			return {
+				desc1: toolParams.selector,
+				desc1Info: `textLength=${toolParams.text.length}; timeout=${toolParams.timeout}ms; delay=${toolParams.delayMs}ms`,
+			}
+		},
+		'browser_fill': () => {
+			const toolParams = _toolParams as BuiltinToolCallParams['browser_fill']
+			return {
+				desc1: toolParams.selector,
+				desc1Info: `valueLength=${toolParams.value.length}; timeout=${toolParams.timeout}ms`,
+			}
+		},
+		'browser_screenshot': () => {
+			const toolParams = _toolParams as BuiltinToolCallParams['browser_screenshot']
+			return { desc1: toolParams.fullPage ? 'full page' : 'viewport' }
+		},
+		'browser_extract_text': () => {
+			const toolParams = _toolParams as BuiltinToolCallParams['browser_extract_text']
+			return {
+				desc1: toolParams.selector,
+				desc1Info: `timeout=${toolParams.timeout}ms`,
+			}
+		},
+		'browser_evaluate': () => {
+			const toolParams = _toolParams as BuiltinToolCallParams['browser_evaluate']
+			const condensed = toolParams.script.replace(/\s+/g, ' ').trim()
+			const preview = condensed.length > 80 ? condensed.slice(0, 80) + '...' : condensed
+			return {
+				desc1: preview,
+				desc1Info: condensed,
+			}
+		},
+		'browser_wait_for_selector': () => {
+			const toolParams = _toolParams as BuiltinToolCallParams['browser_wait_for_selector']
+			const condition = toolParams.hidden ? 'hidden' : toolParams.visible ? 'visible' : 'present'
+			return {
+				desc1: toolParams.selector,
+				desc1Info: `timeout=${toolParams.timeout}ms; ${condition}`,
+			}
 		},
 		'get_dir_tree': () => {
 			const toolParams = _toolParams as BuiltinToolCallParams['get_dir_tree']
@@ -2621,6 +2705,7 @@ const builtinToolNameToComponent: { [T in BuiltinToolName]: { resultWrapper: Res
 
 			const isError = false
 			const isRejected = toolMessage.type === 'rejected'
+			const { params } = toolMessage
 			const componentParams: ToolHeaderParams = {
 				title,
 				desc1,
@@ -3210,6 +3295,407 @@ const builtinToolNameToComponent: { [T in BuiltinToolName]: { resultWrapper: Res
 		},
 	},
 
+	// --- browser automation
+	'browser_navigate': {
+		resultWrapper: ({ toolMessage }) => {
+			const accessor = useAccessor()
+			const commandService = accessor.get('ICommandService')
+
+			const title = getTitle(toolMessage)
+			const { desc1, desc1Info } = toolNameToDesc(toolMessage.name, toolMessage.params, accessor, toolMessage.rawParams)
+			const statusIconMeta = getToolStatusIconMeta(toolMessage)
+
+			if (toolMessage.type === 'tool_request') return null
+
+			const isRejected = toolMessage.type === 'rejected'
+			const componentParams: ToolHeaderParams = {
+				title,
+				desc1,
+				desc1Info,
+				isError: false,
+				isRejected,
+				icon: statusIconMeta?.icon,
+				iconTooltip: statusIconMeta?.tooltip,
+				info: `waitUntil=${toolMessage.params.waitUntil}; timeout=${toolMessage.params.timeout}ms`,
+			}
+
+			if (toolMessage.type === 'success') {
+				componentParams.desc1 = toolMessage.result.url
+				componentParams.desc1Info = toolMessage.result.url
+				componentParams.desc2 = <CopyButton codeStr={toolMessage.result.url} toolTipName='Copy URL' />
+				componentParams.onClick = () => commandService.executeCommand('simpleBrowser.show', toolMessage.result.url)
+			}
+			else if (toolMessage.type === 'rejected') {
+				componentParams.desc2 = <CopyButton codeStr={toolMessage.params.url} toolTipName='Copy URL' />
+				componentParams.onClick = () => commandService.executeCommand('simpleBrowser.show', toolMessage.params.url)
+			}
+			else if (toolMessage.type === 'tool_error') {
+				componentParams.desc1 = typeof toolMessage.result === 'string' ? toolMessage.result : String(toolMessage.result)
+				componentParams.isError = true
+			}
+
+			return <ToolHeaderWrapper {...componentParams} />
+		}
+	},
+	'browser_get_url': {
+		resultWrapper: ({ toolMessage }) => {
+			const accessor = useAccessor()
+			const commandService = accessor.get('ICommandService')
+
+			const title = getTitle(toolMessage)
+			const { desc1, desc1Info } = toolNameToDesc(toolMessage.name, toolMessage.params, accessor, toolMessage.rawParams)
+			const statusIconMeta = getToolStatusIconMeta(toolMessage)
+
+			if (toolMessage.type === 'tool_request') return null
+
+			const isRejected = toolMessage.type === 'rejected'
+			const componentParams: ToolHeaderParams = {
+				title,
+				desc1,
+				desc1Info,
+				isError: false,
+				isRejected,
+				icon: statusIconMeta?.icon,
+				iconTooltip: statusIconMeta?.tooltip,
+			}
+
+			if (toolMessage.type === 'success') {
+				componentParams.desc1 = toolMessage.result.url
+				componentParams.desc1Info = toolMessage.result.url
+				componentParams.desc2 = <CopyButton codeStr={toolMessage.result.url} toolTipName='Copy URL' />
+				componentParams.onClick = () => commandService.executeCommand('simpleBrowser.show', toolMessage.result.url)
+			}
+			else if (toolMessage.type === 'tool_error') {
+				componentParams.desc1 = typeof toolMessage.result === 'string' ? toolMessage.result : String(toolMessage.result)
+				componentParams.isError = true
+			}
+
+			return <ToolHeaderWrapper {...componentParams} />
+		}
+	},
+	'browser_click': {
+		resultWrapper: ({ toolMessage }) => {
+			const accessor = useAccessor()
+
+			const title = getTitle(toolMessage)
+			const { desc1, desc1Info } = toolNameToDesc(toolMessage.name, toolMessage.params, accessor, toolMessage.rawParams)
+			const statusIconMeta = getToolStatusIconMeta(toolMessage)
+
+			if (toolMessage.type === 'tool_request') return null
+
+			const isRejected = toolMessage.type === 'rejected'
+			const componentParams: ToolHeaderParams = {
+				title,
+				desc1,
+				desc1Info,
+				isError: false,
+				isRejected,
+				icon: statusIconMeta?.icon,
+				iconTooltip: statusIconMeta?.tooltip,
+				info: `timeout=${toolMessage.params.timeout}ms`,
+			}
+
+			if (toolMessage.type === 'tool_error') {
+				componentParams.desc1 = typeof toolMessage.result === 'string' ? toolMessage.result : String(toolMessage.result)
+				componentParams.isError = true
+			}
+
+			return <ToolHeaderWrapper {...componentParams} />
+		}
+	},
+	'browser_type': {
+		resultWrapper: ({ toolMessage }) => {
+			const accessor = useAccessor()
+
+			const title = getTitle(toolMessage)
+			const { desc1, desc1Info } = toolNameToDesc(toolMessage.name, toolMessage.params, accessor, toolMessage.rawParams)
+			const statusIconMeta = getToolStatusIconMeta(toolMessage)
+
+			if (toolMessage.type === 'tool_request') return null
+
+			const isRejected = toolMessage.type === 'rejected'
+			const componentParams: ToolHeaderParams = {
+				title,
+				desc1,
+				desc1Info,
+				isError: false,
+				isRejected,
+				icon: statusIconMeta?.icon,
+				iconTooltip: statusIconMeta?.tooltip,
+				info: `timeout=${toolMessage.params.timeout}ms; delay=${toolMessage.params.delayMs}ms; textLength=${toolMessage.params.text.length}`,
+			}
+
+			if (toolMessage.type === 'tool_error') {
+				componentParams.desc1 = typeof toolMessage.result === 'string' ? toolMessage.result : String(toolMessage.result)
+				componentParams.isError = true
+			}
+
+			return <ToolHeaderWrapper {...componentParams} />
+		}
+	},
+	'browser_fill': {
+		resultWrapper: ({ toolMessage }) => {
+			const accessor = useAccessor()
+
+			const title = getTitle(toolMessage)
+			const { desc1, desc1Info } = toolNameToDesc(toolMessage.name, toolMessage.params, accessor, toolMessage.rawParams)
+			const statusIconMeta = getToolStatusIconMeta(toolMessage)
+
+			if (toolMessage.type === 'tool_request') return null
+
+			const isRejected = toolMessage.type === 'rejected'
+			const componentParams: ToolHeaderParams = {
+				title,
+				desc1,
+				desc1Info,
+				isError: false,
+				isRejected,
+				icon: statusIconMeta?.icon,
+				iconTooltip: statusIconMeta?.tooltip,
+				info: `timeout=${toolMessage.params.timeout}ms; valueLength=${toolMessage.params.value.length}`,
+			}
+
+			if (toolMessage.type === 'tool_error') {
+				componentParams.desc1 = typeof toolMessage.result === 'string' ? toolMessage.result : String(toolMessage.result)
+				componentParams.isError = true
+			}
+
+			return <ToolHeaderWrapper {...componentParams} />
+		}
+	},
+	'browser_wait_for_selector': {
+		resultWrapper: ({ toolMessage }) => {
+			const accessor = useAccessor()
+
+			const title = getTitle(toolMessage)
+			const { desc1, desc1Info } = toolNameToDesc(toolMessage.name, toolMessage.params, accessor, toolMessage.rawParams)
+			const statusIconMeta = getToolStatusIconMeta(toolMessage)
+
+			if (toolMessage.type === 'tool_request') return null
+
+			const isRejected = toolMessage.type === 'rejected'
+			const componentParams: ToolHeaderParams = {
+				title,
+				desc1,
+				desc1Info,
+				isError: false,
+				isRejected,
+				icon: statusIconMeta?.icon,
+				iconTooltip: statusIconMeta?.tooltip,
+				info: `timeout=${toolMessage.params.timeout}ms; visible=${toolMessage.params.visible}; hidden=${toolMessage.params.hidden}`,
+			}
+
+			if (toolMessage.type === 'tool_error') {
+				componentParams.desc1 = typeof toolMessage.result === 'string' ? toolMessage.result : String(toolMessage.result)
+				componentParams.isError = true
+			}
+
+			return <ToolHeaderWrapper {...componentParams} />
+		}
+	},
+	'browser_screenshot': {
+		resultWrapper: ({ toolMessage }) => {
+			const accessor = useAccessor()
+
+			const title = getTitle(toolMessage)
+			const { desc1, desc1Info } = toolNameToDesc(toolMessage.name, toolMessage.params, accessor, toolMessage.rawParams)
+			const statusIconMeta = getToolStatusIconMeta(toolMessage)
+
+			if (toolMessage.type === 'tool_request') return null
+
+			const [showPreview, setShowPreview] = useState(false)
+
+			const isRejected = toolMessage.type === 'rejected'
+			const componentParams: ToolHeaderParams = {
+				title,
+				desc1,
+				desc1Info,
+				isError: false,
+				isRejected,
+				icon: statusIconMeta?.icon,
+				iconTooltip: statusIconMeta?.tooltip,
+			}
+
+			if (toolMessage.type === 'success') {
+				const approxBytes = Math.floor((toolMessage.result.base64.length * 3) / 4)
+				const approxKB = (approxBytes / 1024).toFixed(1)
+
+				componentParams.info = `~${approxKB} KB (base64)`
+
+				componentParams.children = (
+					<ToolChildrenWrapper className='pb-2'>
+						<div className='flex items-center justify-between gap-2 py-1'>
+							<button
+								type='button'
+								className='text-xs px-2 py-1 rounded bg-void-bg-3 border border-void-border-2 hover:brightness-110 transition'
+								onClick={() => setShowPreview(v => !v)}
+							>
+								{showPreview ? 'Hide preview' : 'Show preview'}
+							</button>
+							<span className='text-xs text-void-fg-4 opacity-70'>PNG</span>
+						</div>
+						{showPreview && (
+							<img
+								src={`data:image/png;base64,${toolMessage.result.base64}`}
+								alt="Browser screenshot"
+								className='max-w-full h-auto rounded border border-void-border-2'
+							/>
+						)}
+					</ToolChildrenWrapper>
+				)
+			}
+			else if (toolMessage.type === 'tool_error') {
+				componentParams.desc1 = typeof toolMessage.result === 'string' ? toolMessage.result : String(toolMessage.result)
+				componentParams.isError = true
+			}
+
+			return <ToolHeaderWrapper {...componentParams} />
+		}
+	},
+	'browser_get_content': {
+		resultWrapper: ({ toolMessage }) => {
+			const accessor = useAccessor()
+			const toolsService = accessor.get('IToolsService')
+
+			const title = getTitle(toolMessage)
+			const { desc1, desc1Info } = toolNameToDesc(toolMessage.name, toolMessage.params, accessor, toolMessage.rawParams)
+			const statusIconMeta = getToolStatusIconMeta(toolMessage)
+
+			if (toolMessage.type === 'tool_request') return null
+
+			const isRejected = toolMessage.type === 'rejected'
+			const componentParams: ToolHeaderParams = {
+				title,
+				desc1,
+				desc1Info,
+				isError: false,
+				isRejected,
+				icon: statusIconMeta?.icon,
+				iconTooltip: statusIconMeta?.tooltip,
+			}
+
+			if (toolMessage.type === 'success') {
+				componentParams.desc1 = toolMessage.result.title || '(no title)'
+				componentParams.desc1Info = toolMessage.result.title || '(no title)'
+				componentParams.info = `${Math.round(toolMessage.result.html.length / 1024)} KB HTML`
+				componentParams.desc2 = <CopyButton codeStr={toolMessage.result.html} toolTipName='Copy HTML (full)' />
+
+				const rendered = toolsService.stringOfResult['browser_get_content'](toolMessage.params, toolMessage.result)
+				componentParams.children = (
+					<ToolChildrenWrapper>
+						<SmallProseWrapper>
+							<ChatMarkdownRender
+								string={rendered}
+								chatMessageLocation={undefined}
+								isApplyEnabled={false}
+								isLinkDetectionEnabled={true}
+							/>
+						</SmallProseWrapper>
+					</ToolChildrenWrapper>
+				)
+			}
+			else if (toolMessage.type === 'tool_error') {
+				componentParams.desc1 = typeof toolMessage.result === 'string' ? toolMessage.result : String(toolMessage.result)
+				componentParams.isError = true
+			}
+
+			return <ToolHeaderWrapper {...componentParams} />
+		}
+	},
+	'browser_extract_text': {
+		resultWrapper: ({ toolMessage }) => {
+			const accessor = useAccessor()
+			const toolsService = accessor.get('IToolsService')
+
+			const title = getTitle(toolMessage)
+			const { desc1, desc1Info } = toolNameToDesc(toolMessage.name, toolMessage.params, accessor, toolMessage.rawParams)
+			const statusIconMeta = getToolStatusIconMeta(toolMessage)
+
+			if (toolMessage.type === 'tool_request') return null
+
+			const isRejected = toolMessage.type === 'rejected'
+			const componentParams: ToolHeaderParams = {
+				title,
+				desc1,
+				desc1Info,
+				isError: false,
+				isRejected,
+				icon: statusIconMeta?.icon,
+				iconTooltip: statusIconMeta?.tooltip,
+				info: `timeout=${toolMessage.params.timeout}ms`,
+			}
+
+			if (toolMessage.type === 'success') {
+				componentParams.desc2 = <CopyButton codeStr={toolMessage.result.text} toolTipName='Copy text' />
+
+				const rendered = toolsService.stringOfResult['browser_extract_text'](toolMessage.params, toolMessage.result)
+				componentParams.children = (
+					<ToolChildrenWrapper>
+						<SmallProseWrapper>
+							<ChatMarkdownRender
+								string={rendered}
+								chatMessageLocation={undefined}
+								isApplyEnabled={false}
+								isLinkDetectionEnabled={true}
+							/>
+						</SmallProseWrapper>
+					</ToolChildrenWrapper>
+				)
+			}
+			else if (toolMessage.type === 'tool_error') {
+				componentParams.desc1 = typeof toolMessage.result === 'string' ? toolMessage.result : String(toolMessage.result)
+				componentParams.isError = true
+			}
+
+			return <ToolHeaderWrapper {...componentParams} />
+		}
+	},
+	'browser_evaluate': {
+		resultWrapper: ({ toolMessage }) => {
+			const accessor = useAccessor()
+			const toolsService = accessor.get('IToolsService')
+
+			const title = getTitle(toolMessage)
+			const { desc1, desc1Info } = toolNameToDesc(toolMessage.name, toolMessage.params, accessor, toolMessage.rawParams)
+			const statusIconMeta = getToolStatusIconMeta(toolMessage)
+
+			if (toolMessage.type === 'tool_request') return null
+
+			const isRejected = toolMessage.type === 'rejected'
+			const componentParams: ToolHeaderParams = {
+				title,
+				desc1,
+				desc1Info,
+				isError: false,
+				isRejected,
+				icon: statusIconMeta?.icon,
+				iconTooltip: statusIconMeta?.tooltip,
+			}
+
+			if (toolMessage.type === 'success') {
+				const rendered = toolsService.stringOfResult['browser_evaluate'](toolMessage.params, toolMessage.result)
+				componentParams.children = (
+					<ToolChildrenWrapper>
+						<SmallProseWrapper>
+							<ChatMarkdownRender
+								string={rendered}
+								chatMessageLocation={undefined}
+								isApplyEnabled={false}
+								isLinkDetectionEnabled={true}
+							/>
+						</SmallProseWrapper>
+					</ToolChildrenWrapper>
+				)
+			}
+			else if (toolMessage.type === 'tool_error') {
+				componentParams.desc1 = typeof toolMessage.result === 'string' ? toolMessage.result : String(toolMessage.result)
+				componentParams.isError = true
+			}
+
+			return <ToolHeaderWrapper {...componentParams} />
+		}
+	},
+
 	// ========================================
 	// ========================================
 
@@ -3494,6 +3980,17 @@ const ParallelToolGroup = ({
 			'run_command': (count) => `Ran ${count} command${count !== 1 ? 's' : ''}`,
 			'run_persistent_command': (count) => `Ran ${count} command${count !== 1 ? 's' : ''}`,
 			'read_lint_errors': (count) => `Read errors from ${count} file${count !== 1 ? 's' : ''}`,
+
+			'browser_navigate': (count) => `Navigated ${count} time${count !== 1 ? 's' : ''}`,
+			'browser_get_url': (count) => `Got URL ${count} time${count !== 1 ? 's' : ''}`,
+			'browser_click': (count) => `Clicked ${count} time${count !== 1 ? 's' : ''}`,
+			'browser_type': (count) => `Typed ${count} time${count !== 1 ? 's' : ''}`,
+			'browser_fill': (count) => `Filled ${count} field${count !== 1 ? 's' : ''}`,
+			'browser_wait_for_selector': (count) => `Waited ${count} time${count !== 1 ? 's' : ''}`,
+			'browser_screenshot': (count) => `Captured ${count} screenshot${count !== 1 ? 's' : ''}`,
+			'browser_get_content': (count) => `Got content ${count} time${count !== 1 ? 's' : ''}`,
+			'browser_extract_text': (count) => `Extracted text ${count} time${count !== 1 ? 's' : ''}`,
+			'browser_evaluate': (count) => `Evaluated JS ${count} time${count !== 1 ? 's' : ''}`,
 		};
 
 		Object.entries(toolCounts).forEach(([toolName, count]) => {
