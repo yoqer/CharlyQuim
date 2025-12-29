@@ -127,7 +127,7 @@ export class SimpleBrowserView extends Disposable {
 	 * Show automation activity overlay
 	 * Disabled for production - no popups
 	 */
-	public showAutomationActivity(action: string, details?: string) {
+	public showAutomationActivity(_action: string, _details?: string) {
 		// Disabled to prevent distracting UI popups during automation
 		// this._webviewPanel.webview.postMessage({
 		// 	type: 'automation-activity',

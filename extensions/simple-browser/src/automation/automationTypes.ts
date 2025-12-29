@@ -115,3 +115,12 @@ export interface SessionOptions {
 	};
 	userAgent?: string;
 }
+
+/**
+ * Evaluation options
+ */
+export interface EvaluationOptions {
+	timeout?: number;
+	showResult?: boolean;
+	safeMode?: boolean;
+}

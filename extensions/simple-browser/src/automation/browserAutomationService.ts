@@ -731,13 +731,13 @@ export class BrowserAutomationService {
 	/**
 	 * Evaluate JavaScript in page context
 	 */
-	async evaluate(sessionId: string, script: string): Promise<AutomationResult<any>> {
+	async evaluate(sessionId: string, script: string, options?: { timeout?: number }): Promise<AutomationResult<any>> {
 		try {
 			this.syncBrowserUI('Evaluating JavaScript', 'Running custom script...');
 
 			const result = await vscode.commands.executeCommand<AutomationResult<any>>(
 				'_browserAutomation.evaluate',
-				{ sessionId, script }
+				{ sessionId, script, options }
 			);
 
 			if (result?.success) {
@@ -895,7 +895,7 @@ export class BrowserAutomationService {
 	dispose() {
 		// Close all sessions
 		for (const sessionId of this.sessions.keys()) {
-			this.closeSession(sessionId).catch(() => {});
+			this.closeSession(sessionId).catch(() => { });
 		}
 		this.sessions.clear();
 	}

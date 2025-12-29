@@ -36,6 +36,7 @@ import { persistentTerminalNameOfId } from '../../../terminalToolService.js';
 import { removeMCPToolNamePrefix } from '../../../../common/mcpServiceTypes.js';
 import { TextShimmer } from '../util/TextShimmer.js';
 import { TodoStatusBar } from './TodoStatusBar.js';
+import { BrowserToolBar } from '../browser-tools-tsx/index.js';
 
 
 
@@ -3295,404 +3296,65 @@ const builtinToolNameToComponent: { [T in BuiltinToolName]: { resultWrapper: Res
 		},
 	},
 
-	// --- browser automation
+	// --- browser automation (redesigned with compact horizontal bar layout)
 	'browser_navigate': {
 		resultWrapper: ({ toolMessage }) => {
-			const accessor = useAccessor()
-			const commandService = accessor.get('ICommandService')
-
-			const title = getTitle(toolMessage)
-			const { desc1, desc1Info } = toolNameToDesc(toolMessage.name, toolMessage.params, accessor, toolMessage.rawParams)
-			const statusIconMeta = getToolStatusIconMeta(toolMessage)
-
-			if (toolMessage.type === 'tool_request') return null
-
-			const isRejected = toolMessage.type === 'rejected'
-			const componentParams: ToolHeaderParams = {
-				title,
-				desc1,
-				desc1Info,
-				isError: false,
-				isRejected,
-				icon: statusIconMeta?.icon,
-				iconTooltip: statusIconMeta?.tooltip,
-				info: `waitUntil=${toolMessage.params.waitUntil}; timeout=${toolMessage.params.timeout}ms`,
-			}
-
-			if (toolMessage.type === 'success') {
-				componentParams.desc1 = toolMessage.result.url
-				componentParams.desc1Info = toolMessage.result.url
-				componentParams.desc2 = <CopyButton codeStr={toolMessage.result.url} toolTipName='Copy URL' />
-				componentParams.onClick = () => commandService.executeCommand('simpleBrowser.show', toolMessage.result.url)
-			}
-			else if (toolMessage.type === 'rejected') {
-				componentParams.desc2 = <CopyButton codeStr={toolMessage.params.url} toolTipName='Copy URL' />
-				componentParams.onClick = () => commandService.executeCommand('simpleBrowser.show', toolMessage.params.url)
-			}
-			else if (toolMessage.type === 'tool_error') {
-				componentParams.desc1 = typeof toolMessage.result === 'string' ? toolMessage.result : String(toolMessage.result)
-				componentParams.isError = true
-			}
-
-			return <ToolHeaderWrapper {...componentParams} />
+			if (toolMessage.type === 'tool_request') return null;
+			return <BrowserToolBar toolMessage={toolMessage} variant="navigation" />;
 		}
 	},
 	'browser_get_url': {
 		resultWrapper: ({ toolMessage }) => {
-			const accessor = useAccessor()
-			const commandService = accessor.get('ICommandService')
-
-			const title = getTitle(toolMessage)
-			const { desc1, desc1Info } = toolNameToDesc(toolMessage.name, toolMessage.params, accessor, toolMessage.rawParams)
-			const statusIconMeta = getToolStatusIconMeta(toolMessage)
-
-			if (toolMessage.type === 'tool_request') return null
-
-			const isRejected = toolMessage.type === 'rejected'
-			const componentParams: ToolHeaderParams = {
-				title,
-				desc1,
-				desc1Info,
-				isError: false,
-				isRejected,
-				icon: statusIconMeta?.icon,
-				iconTooltip: statusIconMeta?.tooltip,
-			}
-
-			if (toolMessage.type === 'success') {
-				componentParams.desc1 = toolMessage.result.url
-				componentParams.desc1Info = toolMessage.result.url
-				componentParams.desc2 = <CopyButton codeStr={toolMessage.result.url} toolTipName='Copy URL' />
-				componentParams.onClick = () => commandService.executeCommand('simpleBrowser.show', toolMessage.result.url)
-			}
-			else if (toolMessage.type === 'tool_error') {
-				componentParams.desc1 = typeof toolMessage.result === 'string' ? toolMessage.result : String(toolMessage.result)
-				componentParams.isError = true
-			}
-
-			return <ToolHeaderWrapper {...componentParams} />
+			if (toolMessage.type === 'tool_request') return null;
+			return <BrowserToolBar toolMessage={toolMessage} variant="navigation" />;
 		}
 	},
 	'browser_click': {
 		resultWrapper: ({ toolMessage }) => {
-			const accessor = useAccessor()
-
-			const title = getTitle(toolMessage)
-			const { desc1, desc1Info } = toolNameToDesc(toolMessage.name, toolMessage.params, accessor, toolMessage.rawParams)
-			const statusIconMeta = getToolStatusIconMeta(toolMessage)
-
-			if (toolMessage.type === 'tool_request') return null
-
-			const isRejected = toolMessage.type === 'rejected'
-			const componentParams: ToolHeaderParams = {
-				title,
-				desc1,
-				desc1Info,
-				isError: false,
-				isRejected,
-				icon: statusIconMeta?.icon,
-				iconTooltip: statusIconMeta?.tooltip,
-				info: `timeout=${toolMessage.params.timeout}ms`,
-			}
-
-			if (toolMessage.type === 'tool_error') {
-				componentParams.desc1 = typeof toolMessage.result === 'string' ? toolMessage.result : String(toolMessage.result)
-				componentParams.isError = true
-			}
-
-			return <ToolHeaderWrapper {...componentParams} />
+			if (toolMessage.type === 'tool_request') return null;
+			return <BrowserToolBar toolMessage={toolMessage} variant="interaction" />;
 		}
 	},
 	'browser_type': {
 		resultWrapper: ({ toolMessage }) => {
-			const accessor = useAccessor()
-
-			const title = getTitle(toolMessage)
-			const { desc1, desc1Info } = toolNameToDesc(toolMessage.name, toolMessage.params, accessor, toolMessage.rawParams)
-			const statusIconMeta = getToolStatusIconMeta(toolMessage)
-
-			if (toolMessage.type === 'tool_request') return null
-
-			const isRejected = toolMessage.type === 'rejected'
-			const componentParams: ToolHeaderParams = {
-				title,
-				desc1,
-				desc1Info,
-				isError: false,
-				isRejected,
-				icon: statusIconMeta?.icon,
-				iconTooltip: statusIconMeta?.tooltip,
-				info: `timeout=${toolMessage.params.timeout}ms; delay=${toolMessage.params.delayMs}ms; textLength=${toolMessage.params.text.length}`,
-			}
-
-			if (toolMessage.type === 'tool_error') {
-				componentParams.desc1 = typeof toolMessage.result === 'string' ? toolMessage.result : String(toolMessage.result)
-				componentParams.isError = true
-			}
-
-			return <ToolHeaderWrapper {...componentParams} />
+			if (toolMessage.type === 'tool_request') return null;
+			return <BrowserToolBar toolMessage={toolMessage} variant="interaction" />;
 		}
 	},
 	'browser_fill': {
 		resultWrapper: ({ toolMessage }) => {
-			const accessor = useAccessor()
-
-			const title = getTitle(toolMessage)
-			const { desc1, desc1Info } = toolNameToDesc(toolMessage.name, toolMessage.params, accessor, toolMessage.rawParams)
-			const statusIconMeta = getToolStatusIconMeta(toolMessage)
-
-			if (toolMessage.type === 'tool_request') return null
-
-			const isRejected = toolMessage.type === 'rejected'
-			const componentParams: ToolHeaderParams = {
-				title,
-				desc1,
-				desc1Info,
-				isError: false,
-				isRejected,
-				icon: statusIconMeta?.icon,
-				iconTooltip: statusIconMeta?.tooltip,
-				info: `timeout=${toolMessage.params.timeout}ms; valueLength=${toolMessage.params.value.length}`,
-			}
-
-			if (toolMessage.type === 'tool_error') {
-				componentParams.desc1 = typeof toolMessage.result === 'string' ? toolMessage.result : String(toolMessage.result)
-				componentParams.isError = true
-			}
-
-			return <ToolHeaderWrapper {...componentParams} />
+			if (toolMessage.type === 'tool_request') return null;
+			return <BrowserToolBar toolMessage={toolMessage} variant="interaction" />;
 		}
 	},
 	'browser_wait_for_selector': {
 		resultWrapper: ({ toolMessage }) => {
-			const accessor = useAccessor()
-
-			const title = getTitle(toolMessage)
-			const { desc1, desc1Info } = toolNameToDesc(toolMessage.name, toolMessage.params, accessor, toolMessage.rawParams)
-			const statusIconMeta = getToolStatusIconMeta(toolMessage)
-
-			if (toolMessage.type === 'tool_request') return null
-
-			const isRejected = toolMessage.type === 'rejected'
-			const componentParams: ToolHeaderParams = {
-				title,
-				desc1,
-				desc1Info,
-				isError: false,
-				isRejected,
-				icon: statusIconMeta?.icon,
-				iconTooltip: statusIconMeta?.tooltip,
-				info: `timeout=${toolMessage.params.timeout}ms; visible=${toolMessage.params.visible}; hidden=${toolMessage.params.hidden}`,
-			}
-
-			if (toolMessage.type === 'tool_error') {
-				componentParams.desc1 = typeof toolMessage.result === 'string' ? toolMessage.result : String(toolMessage.result)
-				componentParams.isError = true
-			}
-
-			return <ToolHeaderWrapper {...componentParams} />
+			if (toolMessage.type === 'tool_request') return null;
+			return <BrowserToolBar toolMessage={toolMessage} variant="interaction" />;
 		}
 	},
 	'browser_screenshot': {
 		resultWrapper: ({ toolMessage }) => {
-			const accessor = useAccessor()
-
-			const title = getTitle(toolMessage)
-			const { desc1, desc1Info } = toolNameToDesc(toolMessage.name, toolMessage.params, accessor, toolMessage.rawParams)
-			const statusIconMeta = getToolStatusIconMeta(toolMessage)
-
-			if (toolMessage.type === 'tool_request') return null
-
-			const [showPreview, setShowPreview] = useState(false)
-
-			const isRejected = toolMessage.type === 'rejected'
-			const componentParams: ToolHeaderParams = {
-				title,
-				desc1,
-				desc1Info,
-				isError: false,
-				isRejected,
-				icon: statusIconMeta?.icon,
-				iconTooltip: statusIconMeta?.tooltip,
-			}
-
-			if (toolMessage.type === 'success') {
-				const approxBytes = Math.floor((toolMessage.result.base64.length * 3) / 4)
-				const approxKB = (approxBytes / 1024).toFixed(1)
-
-				componentParams.info = `~${approxKB} KB (base64)`
-
-				componentParams.children = (
-					<ToolChildrenWrapper className='pb-2'>
-						<div className='flex items-center justify-between gap-2 py-1'>
-							<button
-								type='button'
-								className='text-xs px-2 py-1 rounded bg-void-bg-3 border border-void-border-2 hover:brightness-110 transition'
-								onClick={() => setShowPreview(v => !v)}
-							>
-								{showPreview ? 'Hide preview' : 'Show preview'}
-							</button>
-							<span className='text-xs text-void-fg-4 opacity-70'>PNG</span>
-						</div>
-						{showPreview && (
-							<img
-								src={`data:image/png;base64,${toolMessage.result.base64}`}
-								alt="Browser screenshot"
-								className='max-w-full h-auto rounded border border-void-border-2'
-							/>
-						)}
-					</ToolChildrenWrapper>
-				)
-			}
-			else if (toolMessage.type === 'tool_error') {
-				componentParams.desc1 = typeof toolMessage.result === 'string' ? toolMessage.result : String(toolMessage.result)
-				componentParams.isError = true
-			}
-
-			return <ToolHeaderWrapper {...componentParams} />
+			if (toolMessage.type === 'tool_request') return null;
+			return <BrowserToolBar toolMessage={toolMessage} variant="capture" />;
 		}
 	},
 	'browser_get_content': {
 		resultWrapper: ({ toolMessage }) => {
-			const accessor = useAccessor()
-			const toolsService = accessor.get('IToolsService')
-
-			const title = getTitle(toolMessage)
-			const { desc1, desc1Info } = toolNameToDesc(toolMessage.name, toolMessage.params, accessor, toolMessage.rawParams)
-			const statusIconMeta = getToolStatusIconMeta(toolMessage)
-
-			if (toolMessage.type === 'tool_request') return null
-
-			const isRejected = toolMessage.type === 'rejected'
-			const componentParams: ToolHeaderParams = {
-				title,
-				desc1,
-				desc1Info,
-				isError: false,
-				isRejected,
-				icon: statusIconMeta?.icon,
-				iconTooltip: statusIconMeta?.tooltip,
-			}
-
-			if (toolMessage.type === 'success') {
-				componentParams.desc1 = toolMessage.result.title || '(no title)'
-				componentParams.desc1Info = toolMessage.result.title || '(no title)'
-				componentParams.info = `${Math.round(toolMessage.result.html.length / 1024)} KB HTML`
-				componentParams.desc2 = <CopyButton codeStr={toolMessage.result.html} toolTipName='Copy HTML (full)' />
-
-				const rendered = toolsService.stringOfResult['browser_get_content'](toolMessage.params, toolMessage.result)
-				componentParams.children = (
-					<ToolChildrenWrapper>
-						<SmallProseWrapper>
-							<ChatMarkdownRender
-								string={rendered}
-								chatMessageLocation={undefined}
-								isApplyEnabled={false}
-								isLinkDetectionEnabled={true}
-							/>
-						</SmallProseWrapper>
-					</ToolChildrenWrapper>
-				)
-			}
-			else if (toolMessage.type === 'tool_error') {
-				componentParams.desc1 = typeof toolMessage.result === 'string' ? toolMessage.result : String(toolMessage.result)
-				componentParams.isError = true
-			}
-
-			return <ToolHeaderWrapper {...componentParams} />
+			if (toolMessage.type === 'tool_request') return null;
+			return <BrowserToolBar toolMessage={toolMessage} variant="capture" />;
 		}
 	},
 	'browser_extract_text': {
 		resultWrapper: ({ toolMessage }) => {
-			const accessor = useAccessor()
-			const toolsService = accessor.get('IToolsService')
-
-			const title = getTitle(toolMessage)
-			const { desc1, desc1Info } = toolNameToDesc(toolMessage.name, toolMessage.params, accessor, toolMessage.rawParams)
-			const statusIconMeta = getToolStatusIconMeta(toolMessage)
-
-			if (toolMessage.type === 'tool_request') return null
-
-			const isRejected = toolMessage.type === 'rejected'
-			const componentParams: ToolHeaderParams = {
-				title,
-				desc1,
-				desc1Info,
-				isError: false,
-				isRejected,
-				icon: statusIconMeta?.icon,
-				iconTooltip: statusIconMeta?.tooltip,
-				info: `timeout=${toolMessage.params.timeout}ms`,
-			}
-
-			if (toolMessage.type === 'success') {
-				componentParams.desc2 = <CopyButton codeStr={toolMessage.result.text} toolTipName='Copy text' />
-
-				const rendered = toolsService.stringOfResult['browser_extract_text'](toolMessage.params, toolMessage.result)
-				componentParams.children = (
-					<ToolChildrenWrapper>
-						<SmallProseWrapper>
-							<ChatMarkdownRender
-								string={rendered}
-								chatMessageLocation={undefined}
-								isApplyEnabled={false}
-								isLinkDetectionEnabled={true}
-							/>
-						</SmallProseWrapper>
-					</ToolChildrenWrapper>
-				)
-			}
-			else if (toolMessage.type === 'tool_error') {
-				componentParams.desc1 = typeof toolMessage.result === 'string' ? toolMessage.result : String(toolMessage.result)
-				componentParams.isError = true
-			}
-
-			return <ToolHeaderWrapper {...componentParams} />
+			if (toolMessage.type === 'tool_request') return null;
+			return <BrowserToolBar toolMessage={toolMessage} variant="capture" />;
 		}
 	},
 	'browser_evaluate': {
 		resultWrapper: ({ toolMessage }) => {
-			const accessor = useAccessor()
-			const toolsService = accessor.get('IToolsService')
-
-			const title = getTitle(toolMessage)
-			const { desc1, desc1Info } = toolNameToDesc(toolMessage.name, toolMessage.params, accessor, toolMessage.rawParams)
-			const statusIconMeta = getToolStatusIconMeta(toolMessage)
-
-			if (toolMessage.type === 'tool_request') return null
-
-			const isRejected = toolMessage.type === 'rejected'
-			const componentParams: ToolHeaderParams = {
-				title,
-				desc1,
-				desc1Info,
-				isError: false,
-				isRejected,
-				icon: statusIconMeta?.icon,
-				iconTooltip: statusIconMeta?.tooltip,
-			}
-
-			if (toolMessage.type === 'success') {
-				const rendered = toolsService.stringOfResult['browser_evaluate'](toolMessage.params, toolMessage.result)
-				componentParams.children = (
-					<ToolChildrenWrapper>
-						<SmallProseWrapper>
-							<ChatMarkdownRender
-								string={rendered}
-								chatMessageLocation={undefined}
-								isApplyEnabled={false}
-								isLinkDetectionEnabled={true}
-							/>
-						</SmallProseWrapper>
-					</ToolChildrenWrapper>
-				)
-			}
-			else if (toolMessage.type === 'tool_error') {
-				componentParams.desc1 = typeof toolMessage.result === 'string' ? toolMessage.result : String(toolMessage.result)
-				componentParams.isError = true
-			}
-
-			return <ToolHeaderWrapper {...componentParams} />
+			if (toolMessage.type === 'tool_request') return null;
+			return <BrowserToolBar toolMessage={toolMessage} variant="evaluation" />;
 		}
 	},
 
