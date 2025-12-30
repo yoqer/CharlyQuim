@@ -5,6 +5,7 @@
 
 import * as vscode from 'vscode';
 import { ShowOptions, SimpleBrowserView } from './simpleBrowserView';
+import { BrowserAutomationService } from './automation/browserAutomationService';
 
 export class SimpleBrowserManager {
 
@@ -12,7 +13,13 @@ export class SimpleBrowserManager {
 
 	constructor(
 		private readonly extensionUri: vscode.Uri,
-	) { }
+		automationService?: BrowserAutomationService
+	) {
+		// Register automation service globally for SimpleBrowserView to access
+		if (automationService) {
+			(global as any).browserAutomationService = automationService;
+		}
+	}
 
 	dispose() {
 		this._activeView?.dispose();

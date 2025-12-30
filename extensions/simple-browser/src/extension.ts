@@ -40,7 +40,12 @@ const openerId = 'simpleBrowser.open';
 
 export function activate(context: vscode.ExtensionContext) {
 
-	const manager = new SimpleBrowserManager(context.extensionUri);
+	// Initialize browser automation service first
+	const automationService = new BrowserAutomationService(context);
+	context.subscriptions.push(automationService);
+
+	// Create manager with automation service reference
+	const manager = new SimpleBrowserManager(context.extensionUri, automationService);
 	context.subscriptions.push(manager);
 
 	// Store manager globally for automation commands to access
@@ -90,11 +95,7 @@ export function activate(context: vscode.ExtensionContext) {
 		label: vscode.l10n.t("Open in simple browser"),
 	}));
 
-	// Initialize browser automation
-	const automationService = new BrowserAutomationService(context);
-	context.subscriptions.push(automationService);
-
-	// Register automation commands
+	// Register automation commands (automationService already initialized above)
 	registerNavigationCommands(context, automationService);
 	registerInteractionCommands(context, automationService);
 	registerCaptureCommands(context, automationService);

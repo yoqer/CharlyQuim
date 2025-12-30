@@ -41,6 +41,7 @@ interface AutomationStats {
 export class BrowserAutomationService {
 	private sessions: Map<string, BrowserSession> = new Map();
 	private activeSessionId?: string;
+	private sessionUrls: Map<string, string> = new Map(); // Track current URL for each session
 	private stats: AutomationStats = {
 		totalCommands: 0,
 		successfulCommands: 0,
@@ -154,6 +155,7 @@ export class BrowserAutomationService {
 					url,
 					createdAt: Date.now()
 				});
+				this.sessionUrls.set(sessionId, url); // Track session URL
 				this.activeSessionId = sessionId;
 				this.stats.sessions.created++;
 				this.stats.sessions.active = this.sessions.size;
@@ -188,6 +190,7 @@ export class BrowserAutomationService {
 
 			if (result?.success) {
 				this.sessions.delete(sessionId);
+				this.sessionUrls.delete(sessionId); // Remove URL tracking
 				if (this.activeSessionId === sessionId) {
 					this.activeSessionId = undefined;
 				}
@@ -234,6 +237,57 @@ export class BrowserAutomationService {
 	}
 
 	/**
+	 * Ensure a session exists for the given URL
+	 * Returns existing session if already on that URL, or creates new one
+	 */
+	async ensureSessionForUrl(url: string): Promise<string | undefined> {
+		// Check if active session is already on this URL
+		if (this.activeSessionId) {
+			const currentUrl = this.sessionUrls.get(this.activeSessionId);
+			if (currentUrl === url) {
+				return this.activeSessionId;
+			}
+		}
+
+		// Search all sessions for matching URL
+		for (const [sessionId, sessionUrl] of this.sessionUrls.entries()) {
+			if (sessionUrl === url && this.sessions.has(sessionId)) {
+				this.activeSessionId = sessionId;
+				return sessionId;
+			}
+		}
+
+		// No matching session found - create new one
+		const result = await this.createSession(url);
+		if (result.success && result.data) {
+			return result.data;
+		}
+
+		return undefined;
+	}
+
+	/**
+	 * Update the tracked URL for a session
+	 */
+	updateSessionUrl(sessionId: string, url: string): void {
+		this.sessionUrls.set(sessionId, url);
+
+		// Also update the session object if it exists
+		const session = this.sessions.get(sessionId);
+		if (session) {
+			session.url = url;
+			this.sessions.set(sessionId, session);
+		}
+	}
+
+	/**
+	 * Get the current URL for a session
+	 */
+	getSessionUrl(sessionId: string): string | undefined {
+		return this.sessionUrls.get(sessionId);
+	}
+
+	/**
 	 * Navigate to URL
 	 */
 	async navigate(sessionId: string, url: string, options?: NavigationOptions): Promise<AutomationResult<string>> {
@@ -247,6 +301,8 @@ export class BrowserAutomationService {
 			);
 
 			if (result?.success) {
+				// Update tracked URL after successful navigation
+				this.updateSessionUrl(sessionId, url);
 				this.syncBrowserUI('Navigation Complete', url, url);
 			}
 
@@ -279,6 +335,8 @@ export class BrowserAutomationService {
 				);
 
 				if (urlResult?.success && urlResult.data) {
+					// Update tracked URL after going back
+					this.updateSessionUrl(sessionId, urlResult.data);
 					this.syncBrowserUI('Back Navigation Complete', `Now at: ${urlResult.data}`, urlResult.data);
 				} else {
 					this.syncBrowserUI('Back Navigation Complete', 'Returned to previous page');
@@ -314,6 +372,8 @@ export class BrowserAutomationService {
 				);
 
 				if (urlResult?.success && urlResult.data) {
+					// Update tracked URL after going forward
+					this.updateSessionUrl(sessionId, urlResult.data);
 					this.syncBrowserUI('Forward Navigation Complete', `Now at: ${urlResult.data}`, urlResult.data);
 				} else {
 					this.syncBrowserUI('Forward Navigation Complete', 'Moved to next page');
@@ -415,7 +475,8 @@ export class BrowserAutomationService {
 				);
 
 				if (urlAfter?.success && urlAfter.data && urlBefore?.data && urlAfter.data !== urlBefore.data) {
-					// Navigation occurred - sync browser to new URL
+					// Navigation occurred - update tracked URL and sync browser
+					this.updateSessionUrl(sessionId, urlAfter.data);
 					this.syncBrowserUI('Click Complete - Navigated', `Now at: ${urlAfter.data}`, urlAfter.data);
 				} else {
 					this.syncBrowserUI('Click Complete', selector);

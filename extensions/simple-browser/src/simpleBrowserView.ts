@@ -8,6 +8,9 @@ import { Disposable } from './dispose';
 import { AutomationResult } from './automation/automationTypes';
 import { generateSessionId } from './automation/utils';
 import { buildHoverScript, buildPickScript, ElementBoundingBox, ElementSelectionHoverData, ElementSelectionPickData } from './automation/elementSelection';
+import { BrowserAutomationService } from './automation/browserAutomationService';
+
+// Message types received from webview - defined inline for type safety
 
 
 export interface ShowOptions {
@@ -47,6 +50,12 @@ export class SimpleBrowserView extends Disposable {
 	private elementSelectionViewport: { width: number; height: number } | undefined;
 	private elementSelectionLastUrl: string | undefined;
 	private elementSelectionHoverRequestId = 0;
+
+	// --- Navigation sync state ---
+	private navigationSyncEnabled = true;
+	private mainAutomationSessionId: string | undefined;
+	private navigationInProgress = false;
+	private pendingNavigation: string | undefined;
 
 	public static create(
 		extensionUri: vscode.Uri,
@@ -97,6 +106,37 @@ export class SimpleBrowserView extends Disposable {
 						this.elementSelectionLastUrl = e.url;
 					}
 					break;
+				case 'urlChanged':
+					// Iframe navigation detected (user clicked link, submitted form, etc.)
+					if (typeof e.url === 'string' && e.url !== this.currentUrl) {
+						this.handleUINavigation(e.url, e.source || 'iframe').catch(err => {
+							console.error('Failed to sync iframe navigation:', err);
+						});
+					}
+					break;
+				case 'navigate':
+					// User typed URL or clicked home button
+					if (typeof e.url === 'string') {
+						this.handleUINavigation(e.url, e.source || 'user').catch(err => {
+							console.error('Failed to sync user navigation:', err);
+						});
+					}
+					break;
+				case 'goBack':
+					this.handleBackNavigation().catch(err => {
+						console.error('Failed to navigate back:', err);
+					});
+					break;
+				case 'goForward':
+					this.handleForwardNavigation().catch(err => {
+						console.error('Failed to navigate forward:', err);
+					});
+					break;
+				case 'reload':
+					this.handleReload().catch(err => {
+						console.error('Failed to reload:', err);
+					});
+					break;
 				case 'elementSelection.start':
 					this.handleStartElementSelection(e).catch(err => {
 						this._webviewPanel.webview.postMessage({ type: 'elementSelection.error', message: err instanceof Error ? err.message : String(err) });
@@ -145,7 +185,20 @@ export class SimpleBrowserView extends Disposable {
 	}
 
 	public override dispose() {
+		// Clean up element selection session
 		this.closeElementSelectionSession().then(() => { }, () => { });
+
+		// Clean up main automation session
+		if (this.mainAutomationSessionId) {
+			const automationService = this.getAutomationService();
+			if (automationService) {
+				automationService.closeSession(this.mainAutomationSessionId).catch(() => {
+					// Ignore errors on cleanup
+				});
+			}
+			this.mainAutomationSessionId = undefined;
+		}
+
 		this._onDidDispose.fire();
 		super.dispose();
 	}
@@ -354,6 +407,335 @@ export class SimpleBrowserView extends Disposable {
 		await new Promise<void>(resolve => setTimeout(() => resolve(), 50));
 		const screenshot = await this.screenshotSession(this.elementSelectionSessionId, { type: 'png' });
 		await this._webviewPanel.webview.postMessage({ type: 'elementSelection.screenshot', data: screenshot });
+	}
+
+	// --- Bidirectional Navigation Sync Methods ---
+
+	/**
+	 * Get automation service from global registry
+	 */
+	private getAutomationService(): BrowserAutomationService | undefined {
+		return (global as any).browserAutomationService;
+	}
+
+	/**
+	 * Handle UI navigation and sync to Puppeteer
+	 * Called when user navigates in the UI (types URL, clicks links, etc.)
+	 */
+	private async handleUINavigation(url: string, _source: string): Promise<void> {
+		if (!this.navigationSyncEnabled) {
+			return;
+		}
+
+		// Prevent concurrent navigations - queue if one is in progress
+		if (this.navigationInProgress) {
+			this.pendingNavigation = url;
+			return;
+		}
+
+		this.navigationInProgress = true;
+		const previousUrl = this.currentUrl;
+		this.currentUrl = url;
+
+		try {
+			const automationService = this.getAutomationService();
+			if (!automationService) {
+				// No automation service available - UI-only mode
+				this.navigationInProgress = false;
+				this.processPendingNavigation();
+				return;
+			}
+
+			// Verify session is alive before using it
+			let sessionId = this.mainAutomationSessionId;
+			if (sessionId) {
+				const isAlive = await this.verifySession(sessionId, automationService);
+				if (!isAlive) {
+					sessionId = undefined;
+					this.mainAutomationSessionId = undefined;
+				}
+			}
+
+			if (!sessionId) {
+				// Create new session
+				const result = await automationService.createSession(url, {
+					viewport: { width: 1280, height: 720 }
+				});
+				if (result.success && result.data) {
+					sessionId = result.data;
+					this.mainAutomationSessionId = sessionId;
+				} else {
+					throw new Error(result.error || 'Failed to create automation session');
+				}
+			} else {
+				// Navigate existing session to new URL
+				const result = await automationService.navigate(sessionId, url, {
+					waitUntil: 'domcontentloaded',
+					timeout: 30000
+				});
+
+				if (!result.success) {
+					// Session might be dead - try recreating
+					if (result.error?.includes('Session') || result.error?.includes('closed')) {
+						this.mainAutomationSessionId = undefined;
+						const createResult = await automationService.createSession(url);
+						if (createResult.success && createResult.data) {
+							this.mainAutomationSessionId = createResult.data;
+						} else {
+							throw new Error(createResult.error || 'Failed to recreate session');
+						}
+					} else {
+						throw new Error(result.error || 'Navigation failed');
+					}
+				}
+			}
+
+		} catch (error) {
+			console.error('Navigation sync failed:', error);
+			// Revert UI to previous URL
+			await this.revertNavigation(previousUrl, error instanceof Error ? error.message : String(error));
+		} finally {
+			this.navigationInProgress = false;
+			this.processPendingNavigation();
+		}
+	}
+
+	/**
+	 * Process any pending navigation that was queued
+	 */
+	private processPendingNavigation(): void {
+		if (this.pendingNavigation) {
+			const url = this.pendingNavigation;
+			this.pendingNavigation = undefined;
+			// Process pending navigation asynchronously
+			this.handleUINavigation(url, 'queued').catch(err => {
+				console.error('Pending navigation failed:', err);
+			});
+		}
+	}
+
+	/**
+	 * Verify if a session is still alive
+	 */
+	private async verifySession(sessionId: string, automationService: BrowserAutomationService): Promise<boolean> {
+		try {
+			const result = await automationService.getUrl(sessionId);
+			return result.success;
+		} catch {
+			return false;
+		}
+	}
+
+	/**
+	 * Handle back navigation
+	 */
+	private async handleBackNavigation(): Promise<void> {
+		if (!this.navigationSyncEnabled || this.navigationInProgress) {
+			return;
+		}
+
+		this.navigationInProgress = true;
+
+		try {
+			const automationService = this.getAutomationService();
+			if (!automationService) {
+				return;
+			}
+
+			let sessionId = this.mainAutomationSessionId;
+			if (!sessionId) {
+				sessionId = await automationService.ensureActiveSession();
+			}
+
+			if (!sessionId) {
+				throw new Error('No active session for navigation. Please open a page first.');
+			}
+
+			// Verify session is alive
+			const isAlive = await this.verifySession(sessionId, automationService);
+			if (!isAlive) {
+				throw new Error('Session is no longer active. Please refresh the page.');
+			}
+
+			// Go back in Puppeteer
+			const result = await automationService.goBack(sessionId);
+			if (!result.success) {
+				throw new Error(result.error || 'Failed to go back');
+			}
+
+			// Get new URL after navigation
+			const urlResult = await automationService.getUrl(sessionId);
+			if (urlResult.success && urlResult.data) {
+				this.currentUrl = urlResult.data;
+				// Sync UI to new URL
+				await this._webviewPanel.webview.postMessage({
+					type: 'navigate',
+					url: urlResult.data
+				});
+			}
+
+		} catch (error) {
+			console.error('Back navigation failed:', error);
+			const message = error instanceof Error ? error.message : String(error);
+			// Don't show error for common cases like "no history"
+			if (!message.includes('history') && !message.includes('cannot go back')) {
+				vscode.window.showErrorMessage(`Failed to go back: ${message}`);
+			}
+		} finally {
+			this.navigationInProgress = false;
+		}
+	}
+
+	/**
+	 * Handle forward navigation
+	 */
+	private async handleForwardNavigation(): Promise<void> {
+		if (!this.navigationSyncEnabled || this.navigationInProgress) {
+			return;
+		}
+
+		this.navigationInProgress = true;
+
+		try {
+			const automationService = this.getAutomationService();
+			if (!automationService) {
+				return;
+			}
+
+			let sessionId = this.mainAutomationSessionId;
+			if (!sessionId) {
+				sessionId = await automationService.ensureActiveSession();
+			}
+
+			if (!sessionId) {
+				throw new Error('No active session for navigation. Please open a page first.');
+			}
+
+			// Verify session is alive
+			const isAlive = await this.verifySession(sessionId, automationService);
+			if (!isAlive) {
+				throw new Error('Session is no longer active. Please refresh the page.');
+			}
+
+			// Go forward in Puppeteer
+			const result = await automationService.goForward(sessionId);
+			if (!result.success) {
+				throw new Error(result.error || 'Failed to go forward');
+			}
+
+			// Get new URL after navigation
+			const urlResult = await automationService.getUrl(sessionId);
+			if (urlResult.success && urlResult.data) {
+				this.currentUrl = urlResult.data;
+				// Sync UI to new URL
+				await this._webviewPanel.webview.postMessage({
+					type: 'navigate',
+					url: urlResult.data
+				});
+			}
+
+		} catch (error) {
+			console.error('Forward navigation failed:', error);
+			const message = error instanceof Error ? error.message : String(error);
+			// Don't show error for common cases like "no forward history"
+			if (!message.includes('history') && !message.includes('cannot go forward')) {
+				vscode.window.showErrorMessage(`Failed to go forward: ${message}`);
+			}
+		} finally {
+			this.navigationInProgress = false;
+		}
+	}
+
+	/**
+	 * Handle reload
+	 */
+	private async handleReload(): Promise<void> {
+		if (!this.navigationSyncEnabled || this.navigationInProgress) {
+			return;
+		}
+
+		this.navigationInProgress = true;
+
+		try {
+			const automationService = this.getAutomationService();
+			if (!automationService) {
+				return;
+			}
+
+			let sessionId = this.mainAutomationSessionId;
+			if (!sessionId) {
+				sessionId = await automationService.ensureActiveSession();
+			}
+
+			if (!sessionId) {
+				throw new Error('No active session for reload. Please open a page first.');
+			}
+
+			// Verify session is alive
+			const isAlive = await this.verifySession(sessionId, automationService);
+			if (!isAlive) {
+				// Session dead - recreate with current URL
+				if (this.currentUrl) {
+					const result = await automationService.createSession(this.currentUrl);
+					if (result.success && result.data) {
+						this.mainAutomationSessionId = result.data;
+						return;
+					}
+				}
+				throw new Error('Session is no longer active. Please navigate to a page.');
+			}
+
+			// Reload in Puppeteer
+			const result = await automationService.reload(sessionId);
+			if (!result.success) {
+				throw new Error(result.error || 'Failed to reload');
+			}
+
+		} catch (error) {
+			console.error('Reload failed:', error);
+			vscode.window.showErrorMessage(`Failed to reload: ${error instanceof Error ? error.message : String(error)}`);
+		} finally {
+			this.navigationInProgress = false;
+		}
+	}
+
+	/**
+	 * Revert navigation to previous URL on error
+	 */
+	private async revertNavigation(previousUrl: string, errorMessage: string): Promise<void> {
+		this.currentUrl = previousUrl;
+		await this._webviewPanel.webview.postMessage({
+			type: 'navigationError',
+			previousUrl,
+			error: errorMessage
+		});
+		vscode.window.showErrorMessage(`Navigation failed: ${errorMessage}`);
+	}
+
+	/**
+	 * Update navigation button states from Puppeteer
+	 * (Future enhancement - requires Puppeteer history state query)
+	 */
+	// private async updateNavigationState(sessionId: string): Promise<void> {
+	// 	// TODO: Query Puppeteer for canGoBack/canGoForward
+	// 	// For now, rely on UI fallback history
+	// 	/*
+	// 	const canGoBack = await queryPuppeteerCanGoBack(sessionId);
+	// 	const canGoForward = await queryPuppeteerCanGoForward(sessionId);
+	//
+	// 	await this._webviewPanel.webview.postMessage({
+	// 		type: 'updateNavigationState',
+	// 		canGoBack,
+	// 		canGoForward
+	// 	});
+	// 	*/
+	// }
+
+	/**
+	 * Enable or disable navigation synchronization
+	 */
+	public setNavigationSyncEnabled(enabled: boolean): void {
+		this.navigationSyncEnabled = enabled;
 	}
 
 	private getHtml(url: string) {

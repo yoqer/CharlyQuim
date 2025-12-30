@@ -39,7 +39,12 @@ const clearButton = header.querySelector<HTMLButtonElement>('.clear-button')!;
 const homeUrl = 'https://www.google.com/';
 const searchEngineUrl = 'https://www.google.com/search?q=';
 
-// Client-side history management
+// URL tracking for sync detection
+let lastKnownUrl: string = '';
+let lastReportedUrl: string = '';
+let urlChangeDebounceTimeout: number | undefined;
+
+// Client-side history management (fallback only - Puppeteer is source of truth)
 let historyStack: string[] = [];
 let historyIndex = -1;
 
@@ -114,17 +119,29 @@ function updateNavigationButtons(): void {
 }
 
 // Navigate to a URL
-function navigateToUrl(url: string, addToHistory: boolean = true): void {
+function navigateToUrl(url: string, source: 'user' | 'extension' | 'iframe' = 'user', addToHistory: boolean = true): void {
 	iframe.src = url;
 	input.value = url;
 	updateSecurityIcon(url);
-	vscode.postMessage({ type: 'didNavigate', url });
+	lastKnownUrl = url;
+
+	// Only notify extension for user-initiated or iframe-initiated navigation
+	// Extension-initiated navigation is already known to extension
+	if (source === 'user') {
+		vscode.postMessage({ type: 'navigate', url, source: 'user-action' });
+	} else if (source === 'iframe') {
+		vscode.postMessage({ type: 'urlChanged', url, source: 'iframe-navigation' });
+	} else {
+		// Extension-initiated - just update UI
+		vscode.postMessage({ type: 'didNavigate', url });
+	}
+
 	if (elementSelectionEnabled) {
 		requestSelectionScreenshot();
 	}
 
 	if (addToHistory) {
-		// Remove any forward history when navigating to a new page
+		// Fallback history for UI button states
 		historyStack = historyStack.slice(0, historyIndex + 1);
 		historyStack.push(url);
 		historyIndex = historyStack.length - 1;
@@ -135,25 +152,34 @@ function navigateToUrl(url: string, addToHistory: boolean = true): void {
 
 // Go back in history
 function goBack(): void {
+	// Send message to extension to handle via Puppeteer
+	vscode.postMessage({ type: 'goBack' });
+
+	// Optimistic UI update (fallback)
 	if (historyIndex > 0) {
 		historyIndex--;
-		const url = historyStack[historyIndex];
-		navigateToUrl(url, false);
+		updateNavigationButtons();
 	}
 }
 
 // Go forward in history
 function goForward(): void {
+	// Send message to extension to handle via Puppeteer
+	vscode.postMessage({ type: 'goForward' });
+
+	// Optimistic UI update (fallback)
 	if (historyIndex < historyStack.length - 1) {
 		historyIndex++;
-		const url = historyStack[historyIndex];
-		navigateToUrl(url, false);
+		updateNavigationButtons();
 	}
 }
 
 // Reload current page
 function reload(): void {
-	iframe.src = iframe.src;
+	// Send message to extension to handle via Puppeteer
+	vscode.postMessage({ type: 'reload' });
+
+	// Fallback for UI refresh
 	if (elementSelectionEnabled) {
 		requestSelectionScreenshot();
 	}
@@ -270,8 +296,29 @@ window.addEventListener('message', e => {
 			toggleFocusLockIndicatorEnabled(e.data.enabled);
 			break;
 		case 'navigate':
-			// Navigate from extension (e.g., when show is called with new URL)
-			navigateToUrl(e.data.url);
+			// Navigate from extension (e.g., when show is called with new URL or Puppeteer navigates)
+			navigateToUrl(e.data.url, 'extension');
+			break;
+		case 'updateNavigationState':
+			// Update back/forward button states from Puppeteer history
+			if (typeof e.data.canGoBack === 'boolean') {
+				backButton.disabled = !e.data.canGoBack;
+			}
+			if (typeof e.data.canGoForward === 'boolean') {
+				forwardButton.disabled = !e.data.canGoForward;
+			}
+			break;
+		case 'navigationError':
+			// Revert to previous URL on navigation failure
+			if (typeof e.data.previousUrl === 'string') {
+				iframe.src = e.data.previousUrl;
+				input.value = e.data.previousUrl;
+				updateSecurityIcon(e.data.previousUrl);
+				lastKnownUrl = e.data.previousUrl;
+			}
+			if (typeof e.data.error === 'string') {
+				console.error('Navigation failed:', e.data.error);
+			}
 			break;
 		case 'automation-activity':
 			// Disabled for production - no automation overlays
@@ -315,17 +362,54 @@ onceDocumentLoaded(() => {
 		document.body.classList.toggle('iframe-focused', iframeFocused);
 	}, 50);
 
+	// Detect iframe navigation (user clicks links, submits forms, etc.)
+	iframe.addEventListener('load', () => {
+		try {
+			// Try to get the current URL from iframe
+			const iframeUrl = iframe.contentWindow?.location.href;
+			if (iframeUrl && iframeUrl !== lastKnownUrl && iframeUrl !== 'about:blank') {
+				// Debounce rapid redirects (200ms)
+				if (urlChangeDebounceTimeout) {
+					clearTimeout(urlChangeDebounceTimeout);
+				}
+
+				urlChangeDebounceTimeout = window.setTimeout(() => {
+					urlChangeDebounceTimeout = undefined;
+
+					// Only report if URL actually changed and hasn't been reported yet
+					if (iframeUrl !== lastReportedUrl) {
+						lastReportedUrl = iframeUrl;
+						lastKnownUrl = iframeUrl;
+						input.value = iframeUrl;
+						updateSecurityIcon(iframeUrl);
+
+						// Notify extension about iframe navigation
+						vscode.postMessage({ type: 'urlChanged', url: iframeUrl, source: 'iframe-load' });
+
+						if (elementSelectionEnabled) {
+							requestSelectionScreenshot();
+						}
+					}
+				}, 200);
+			}
+		} catch (e) {
+			// Cross-origin error - can't access iframe URL
+			// This is expected for cross-origin iframes, we'll detect URL on next load event
+			// or rely on lastKnownUrl tracking
+		}
+	});
+
 	input.addEventListener('change', e => {
 		const inputValue = (e.target as HTMLInputElement).value;
 		const url = inputToUrl(inputValue);
-		navigateToUrl(url);
+		navigateToUrl(url, 'user');
 	});
 
 	// Handle Enter key press
 	input.addEventListener('keydown', e => {
 		if (e.key === 'Enter') {
 			const url = inputToUrl(input.value);
-			navigateToUrl(url);
+			navigateToUrl(url, 'user');
 			input.blur();
 		} else if (e.key === 'Escape') {
 			input.blur();
@@ -352,7 +436,7 @@ onceDocumentLoaded(() => {
 	});
 
 	homeButton.addEventListener('click', () => {
-		navigateToUrl(homeUrl);
+		navigateToUrl(homeUrl, 'user');
 	});
 
 	selectElementButton.addEventListener('click', () => {
@@ -372,7 +456,7 @@ onceDocumentLoaded(() => {
 
 	// Initial page load
 	const initialUrl = settings.url || homeUrl;
-	navigateToUrl(initialUrl);
+	navigateToUrl(initialUrl, 'extension');
 
 	toggleFocusLockIndicatorEnabled(settings.focusLockEnabled);
 });
