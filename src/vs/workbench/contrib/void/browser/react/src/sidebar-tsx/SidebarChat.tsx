@@ -638,28 +638,13 @@ const getBrowserElementLabel = (selection: Extract<StagingSelectionItem, { type:
 }
 
 const BrowserElementScreenshotPreview = ({ screenshotBase64 }: { screenshotBase64: string }) => {
-	const [isOpen, setIsOpen] = useState(false)
-
 	return (
-		<div className='w-fit'>
-			<button
-				className='text-[10px] px-1 py-0.5 rounded-sm border border-void-border-1 bg-void-bg-2 hover:brightness-95 text-void-fg-3'
-				onClick={(e) => {
-					e.stopPropagation()
-					setIsOpen(v => !v)
-				}}
-			>
-				{isOpen ? 'Hide screenshot' : 'Show screenshot'}
-			</button>
-			{isOpen ? (
-				<img
-					className='mt-1 max-w-[280px] rounded-sm border border-void-border-1'
-					src={`data:image/png;base64,${screenshotBase64}`}
-					alt='Selected element screenshot'
-					loading='lazy'
-				/>
-			) : null}
-		</div>
+		<img
+			className='w-12 h-12 object-cover rounded border border-void-border-3 shadow-sm'
+			src={`data:image/png;base64,${screenshotBase64}`}
+			alt='Selected element'
+			loading='lazy'
+		/>
 	)
 }
 
