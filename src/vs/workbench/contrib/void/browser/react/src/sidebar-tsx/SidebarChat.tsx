@@ -638,12 +638,24 @@ const getBrowserElementLabel = (selection: Extract<StagingSelectionItem, { type:
 }
 
 const BrowserElementScreenshotPreview = ({ screenshotBase64 }: { screenshotBase64: string }) => {
+	const [imageError, setImageError] = React.useState(false);
+
+	if (imageError || !screenshotBase64) {
+		return (
+			<div className='w-16 h-16 flex items-center justify-center rounded border border-void-border-3 bg-void-bg-2 text-void-text-3 text-xs'>
+				No preview
+			</div>
+		);
+	}
+
 	return (
 		<img
-			className='w-12 h-12 object-cover rounded border border-void-border-3 shadow-sm'
+			className='w-16 h-16 object-contain rounded border border-void-border-3 shadow-sm bg-white/5'
 			src={`data:image/png;base64,${screenshotBase64}`}
 			alt='Selected element'
 			loading='lazy'
+			onError={() => setImageError(true)}
+			style={{ imageRendering: 'auto' }}
 		/>
 	)
 }

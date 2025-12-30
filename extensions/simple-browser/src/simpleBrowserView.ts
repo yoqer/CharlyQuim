@@ -299,7 +299,23 @@ export class SimpleBrowserView extends Disposable {
 		if (!res?.success || !res.data) {
 			throw new Error(res?.error || 'Failed to capture screenshot');
 		}
-		return res.data;
+
+		// Validate screenshot data
+		const screenshot = res.data;
+		if (typeof screenshot !== 'string' || screenshot.length === 0) {
+			throw new Error('Invalid screenshot data: empty or invalid format');
+		}
+
+		// Remove data URI prefix if present (we only want base64)
+		if (screenshot.startsWith('data:')) {
+			const match = screenshot.match(/^data:image\/[^;]+;base64,(.+)$/);
+			if (match && match[1]) {
+				return match[1];
+			}
+			throw new Error('Invalid screenshot data URI format');
+		}
+
+		return screenshot;
 	}
 
 	private async evaluateInSession<T>(sessionId: string, script: string): Promise<T> {
@@ -316,17 +332,33 @@ export class SimpleBrowserView extends Disposable {
 		const vpH = Math.max(0, Math.round(viewport.height));
 		if (!vpW || !vpH) return null;
 
+		// Ensure element has valid dimensions
+		if (boundingBox.width <= 0 || boundingBox.height <= 0) {
+			return null;
+		}
+
+		// Calculate clip region with padding
 		const rawX = Math.floor(boundingBox.x) - pad;
 		const rawY = Math.floor(boundingBox.y) - pad;
 		const rawW = Math.ceil(boundingBox.width) + pad * 2;
 		const rawH = Math.ceil(boundingBox.height) + pad * 2;
 
-		const x = Math.max(0, rawX);
-		const y = Math.max(0, rawY);
-		const width = Math.min(vpW - x, rawW);
-		const height = Math.min(vpH - y, rawH);
+		// Clamp to viewport bounds
+		const x = Math.max(0, Math.min(rawX, vpW - 1));
+		const y = Math.max(0, Math.min(rawY, vpH - 1));
 
-		if (width <= 1 || height <= 1) return null;
+		// Adjust width/height if element starts before viewport
+		const adjustedW = rawX < 0 ? rawW + rawX : rawW;
+		const adjustedH = rawY < 0 ? rawH + rawY : rawH;
+
+		const width = Math.max(1, Math.min(vpW - x, adjustedW));
+		const height = Math.max(1, Math.min(vpH - y, adjustedH));
+
+		// Ensure minimum viable screenshot size (at least 10x10)
+		if (width < 10 || height < 10) {
+			return null;
+		}
+
 		return { x, y, width, height };
 	}
 
@@ -368,13 +400,35 @@ export class SimpleBrowserView extends Disposable {
 
 		let elementScreenshot: string | null = null;
 		if (pickData.boundingBox) {
-			const clip = this.clampClip(pickData.boundingBox, pickData.viewport, 4);
+			// Use larger padding for better element visibility (12px instead of 4px)
+			const clip = this.clampClip(pickData.boundingBox, pickData.viewport, 12);
 			if (clip) {
 				try {
-					elementScreenshot = await this.screenshotSession(this.elementSelectionSessionId, { type: 'png', clip });
-				} catch {
+					// Capture screenshot with quality settings
+					elementScreenshot = await this.screenshotSession(this.elementSelectionSessionId, {
+						type: 'png',
+						clip,
+						omitBackground: false,
+						encoding: 'base64'
+					});
+				} catch (error) {
+					console.error('Failed to capture element screenshot:', error);
 					elementScreenshot = null;
 				}
+			} else {
+				console.warn('Element bounding box is too small or invalid for screenshot');
+			}
+		}
+
+		// Validate screenshot before sending
+		if (elementScreenshot) {
+			// Log screenshot info for debugging
+			console.log(`Element screenshot captured: ${elementScreenshot.length} characters`);
+
+			// Ensure it's valid base64 (basic check)
+			if (!/^[A-Za-z0-9+/=]+$/.test(elementScreenshot)) {
+				console.warn('Screenshot contains invalid base64 characters');
+				elementScreenshot = null;
 			}
 		}
 
@@ -390,6 +444,13 @@ export class SimpleBrowserView extends Disposable {
 
 		try {
 			await vscode.commands.executeCommand('void.addBrowserElementSelection', payload);
+
+			// Show success feedback
+			const elementLabel = pickData.elementData.tagName +
+				(pickData.elementData.id ? `#${pickData.elementData.id}` : '') +
+				(pickData.elementData.classes[0] ? `.${pickData.elementData.classes[0]}` : '');
+			console.log(`Added browser element to selections: ${elementLabel}`);
+
 		} catch (err) {
 			vscode.window.showErrorMessage(`Failed to add element to chat selections: ${err instanceof Error ? err.message : String(err)}`);
 		}
