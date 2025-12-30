@@ -124,4 +124,20 @@ export function registerCaptureCommands(
 			}
 		)
 	);
+
+	// Get accessibility snapshot
+	context.subscriptions.push(
+		vscode.commands.registerCommand(
+			'simpleBrowser.automation.snapshot',
+			async (sessionId?: string, options?: { interestingOnly?: boolean }) => {
+				if (!sessionId) {
+					sessionId = automationService.getActiveSessionId();
+					if (!sessionId) {
+						return { success: false, error: 'No active session' };
+					}
+				}
+				return automationService.snapshot(sessionId, options);
+			}
+		)
+	);
 }

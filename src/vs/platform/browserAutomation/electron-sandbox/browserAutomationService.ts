@@ -115,4 +115,8 @@ export class BrowserAutomationService implements IBrowserAutomationService {
 	clearCookies(params: { sessionId: string }): Promise<IAutomationResult<void>> {
 		return this.channel.call('clearCookies', params);
 	}
+
+	snapshot(params: { sessionId: string; options?: any }): Promise<IAutomationResult<any>> {
+		return this.channel.call('snapshot', params);
+	}
 }

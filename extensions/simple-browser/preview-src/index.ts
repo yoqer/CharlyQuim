@@ -28,6 +28,7 @@ const forwardButton = header.querySelector<HTMLButtonElement>('.forward-button')
 const backButton = header.querySelector<HTMLButtonElement>('.back-button')!;
 const reloadButton = header.querySelector<HTMLButtonElement>('.reload-button')!;
 const homeButton = header.querySelector<HTMLButtonElement>('.home-button')!;
+const selectElementButton = header.querySelector<HTMLButtonElement>('.select-element-button')!;
 const openExternalButton = header.querySelector<HTMLButtonElement>('.open-external-button')!;
 
 // URL bar elements
@@ -117,6 +118,10 @@ function navigateToUrl(url: string, addToHistory: boolean = true): void {
 	iframe.src = url;
 	input.value = url;
 	updateSecurityIcon(url);
+	vscode.postMessage({ type: 'didNavigate', url });
+	if (elementSelectionEnabled) {
+		requestSelectionScreenshot();
+	}
 
 	if (addToHistory) {
 		// Remove any forward history when navigating to a new page
@@ -149,6 +154,9 @@ function goForward(): void {
 // Reload current page
 function reload(): void {
 	iframe.src = iframe.src;
+	if (elementSelectionEnabled) {
+		requestSelectionScreenshot();
+	}
 }
 
 // Automation overlay elements
@@ -173,6 +181,100 @@ function showAutomationActivity(action: string, details?: string): void {
 	}, 3000);
 }
 
+// --- Element selection overlay state ---
+const elementSelectionOverlay = document.getElementById('element-selection-overlay')!;
+const elementSelectionImage = document.getElementById('element-selection-image') as HTMLImageElement;
+const elementSelectionImageWrapper = document.getElementById('element-selection-image-wrapper')!;
+const elementSelectionHighlight = document.getElementById('element-selection-highlight')!;
+const elementSelectionStatus = document.getElementById('element-selection-status')!;
+
+let elementSelectionEnabled = false;
+let latestScreenshotDims: { width: number; height: number } | null = null;
+let hoverRaf: number | undefined;
+let pendingHoverPoint: { x: number; y: number } | null = null;
+let scrollDebounce: number | undefined;
+let isScreenshotLoading = false;
+
+function setElementSelectionStatus(text: string): void {
+	elementSelectionStatus.textContent = text;
+}
+
+elementSelectionImage.addEventListener('load', () => {
+	if (elementSelectionImage.naturalWidth && elementSelectionImage.naturalHeight) {
+		latestScreenshotDims = { width: elementSelectionImage.naturalWidth, height: elementSelectionImage.naturalHeight };
+	} else {
+		latestScreenshotDims = null;
+	}
+});
+
+function setHighlight(box: { x: number; y: number; width: number; height: number } | null): void {
+	if (!box || !latestScreenshotDims) {
+		elementSelectionHighlight.classList.remove('visible');
+		return;
+	}
+
+	const wrapperRect = elementSelectionImageWrapper.getBoundingClientRect();
+	const scaleX = wrapperRect.width / latestScreenshotDims.width;
+	const scaleY = wrapperRect.height / latestScreenshotDims.height;
+
+	const left = Math.max(0, box.x * scaleX);
+	const top = Math.max(0, box.y * scaleY);
+	const width = Math.max(0, box.width * scaleX);
+	const height = Math.max(0, box.height * scaleY);
+
+	elementSelectionHighlight.style.left = `${left}px`;
+	elementSelectionHighlight.style.top = `${top}px`;
+	elementSelectionHighlight.style.width = `${width}px`;
+	elementSelectionHighlight.style.height = `${height}px`;
+	elementSelectionHighlight.classList.add('visible');
+}
+
+function getPointInScreenshot(e: MouseEvent): { x: number; y: number } | null {
+	const rect = elementSelectionImage.getBoundingClientRect();
+	const naturalWidth = elementSelectionImage.naturalWidth;
+	const naturalHeight = elementSelectionImage.naturalHeight;
+
+	if (!naturalWidth || !naturalHeight || rect.width <= 0 || rect.height <= 0) {
+		return null;
+	}
+
+	const x = (e.clientX - rect.left) * (naturalWidth / rect.width);
+	const y = (e.clientY - rect.top) * (naturalHeight / rect.height);
+	return { x, y };
+}
+
+function requestSelectionScreenshot(): void {
+	const url = input.value;
+	const viewport = { width: iframe.clientWidth, height: iframe.clientHeight };
+	isScreenshotLoading = true;
+	setElementSelectionStatus('Loading preview…');
+	vscode.postMessage({ type: 'elementSelection.start', url, viewport });
+}
+
+function enableElementSelection(): void {
+	elementSelectionEnabled = true;
+	selectElementButton.classList.add('active');
+	elementSelectionOverlay.classList.add('active');
+	elementSelectionOverlay.setAttribute('aria-hidden', 'false');
+	setHighlight(null);
+	requestSelectionScreenshot();
+}
+
+function disableElementSelection(): void {
+	elementSelectionEnabled = false;
+	selectElementButton.classList.remove('active');
+	elementSelectionOverlay.classList.remove('active');
+	elementSelectionOverlay.setAttribute('aria-hidden', 'true');
+	setHighlight(null);
+	setElementSelectionStatus('');
+	vscode.postMessage({ type: 'elementSelection.stop' });
+}
+
+function toggleElementSelection(): void {
+	if (elementSelectionEnabled) disableElementSelection();
+	else enableElementSelection();
+}
+
 window.addEventListener('message', e => {
 	switch (e.data.type) {
 		case 'focus':
@@ -189,6 +291,35 @@ window.addEventListener('message', e => {
 			// Disabled for production - no automation overlays
 			// showAutomationActivity(e.data.action, e.data.details);
 			break;
+		case 'elementSelection.screenshot': {
+			const base64 = e.data.data as string | undefined;
+			if (!base64) break;
+			elementSelectionImage.src = `data:image/png;base64,${base64}`;
+			isScreenshotLoading = false;
+			setHighlight(null);
+			setElementSelectionStatus('Hover to highlight. Click to add to chat.');
+			break;
+		}
+		case 'elementSelection.hoverResult': {
+			const data = e.data.data as { boundingBox: { x: number; y: number; width: number; height: number } | null; label: string | null } | undefined;
+			if (!data) break;
+			setHighlight(data.boundingBox);
+			if (data.label && !isScreenshotLoading) {
+				setElementSelectionStatus(data.label);
+			}
+			break;
+		}
+		case 'elementSelection.picked': {
+			const data = e.data.data as { label?: string; selector?: string } | undefined;
+			const label = data?.selector || data?.label || 'Element added';
+			setElementSelectionStatus(`Added: ${label}`);
+			break;
+		}
+		case 'elementSelection.error': {
+			const msg = (e.data.message as string | undefined) || 'Element selection error';
+			setElementSelectionStatus(msg);
+			break;
+		}
 	}
 });
 
@@ -238,6 +369,10 @@ onceDocumentLoaded(() => {
 		navigateToUrl(homeUrl);
 	});
 
+	selectElementButton.addEventListener('click', () => {
+		toggleElementSelection();
+	});
+
 	openExternalButton.addEventListener('click', () => {
 		vscode.postMessage({
 			type: 'openExternal',
@@ -259,3 +394,56 @@ onceDocumentLoaded(() => {
 function toggleFocusLockIndicatorEnabled(enabled: boolean) {
 	document.body.classList.toggle('enable-focus-lock-indicator', enabled);
 }
+
+// Element selection interactions (hover + click + scroll)
+elementSelectionImageWrapper.addEventListener('mousemove', (e) => {
+	if (!elementSelectionEnabled) return;
+	if (isScreenshotLoading) return;
+	const pt = getPointInScreenshot(e);
+	if (!pt) return;
+	pendingHoverPoint = pt;
+
+	if (hoverRaf) return;
+	hoverRaf = window.requestAnimationFrame(() => {
+		hoverRaf = undefined;
+		if (!pendingHoverPoint) return;
+		vscode.postMessage({ type: 'elementSelection.hover', x: pendingHoverPoint.x, y: pendingHoverPoint.y });
+		pendingHoverPoint = null;
+	});
+});
+
+elementSelectionImageWrapper.addEventListener('mouseleave', () => {
+	if (!elementSelectionEnabled) return;
+	setHighlight(null);
+});
+
+elementSelectionImageWrapper.addEventListener('click', (e) => {
+	if (!elementSelectionEnabled) return;
+	if (isScreenshotLoading) return;
+	const pt = getPointInScreenshot(e);
+	if (!pt) return;
+	vscode.postMessage({ type: 'elementSelection.pick', x: pt.x, y: pt.y });
+});
+
+elementSelectionOverlay.addEventListener('wheel', (e) => {
+	if (!elementSelectionEnabled) return;
+	e.preventDefault();
+
+	const deltaY = e.deltaY;
+	if (scrollDebounce) {
+		clearTimeout(scrollDebounce);
+	}
+	scrollDebounce = window.setTimeout(() => {
+		scrollDebounce = undefined;
+		isScreenshotLoading = true;
+		setElementSelectionStatus('Scrolling…');
+		vscode.postMessage({ type: 'elementSelection.scroll', deltaY });
+	}, 60);
+}, { passive: false });
+
+window.addEventListener('keydown', (e) => {
+	if (!elementSelectionEnabled) return;
+	if (e.key === 'Escape') {
+		disableElementSelection();
+	}
+});

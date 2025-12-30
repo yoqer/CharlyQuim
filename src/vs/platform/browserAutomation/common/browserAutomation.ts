@@ -48,6 +48,7 @@ export interface IBrowserAutomationService {
 	getTitle(params: { sessionId: string }): Promise<IAutomationResult<string>>;
 	extractText(params: { sessionId: string; selector: string }): Promise<IAutomationResult<string>>;
 	extractHTML(params: { sessionId: string; selector: string }): Promise<IAutomationResult<string>>;
+	snapshot(params: { sessionId: string; options?: any }): Promise<IAutomationResult<any>>;
 
 	// Evaluation
 	evaluate(params: { sessionId: string; script: string }): Promise<IAutomationResult<any>>;

@@ -629,6 +629,41 @@ export const voidOpenFileFn = (
 };
 
 
+const getBrowserElementLabel = (selection: Extract<StagingSelectionItem, { type: 'BrowserElement' }>) => {
+	const tag = selection.elementData?.tagName || 'element'
+	const id = selection.elementData?.id ? `#${selection.elementData.id}` : ''
+	if (id) return `${tag}${id}`
+	const firstClass = selection.elementData?.classes?.[0]
+	return firstClass ? `${tag}.${firstClass}` : tag
+}
+
+const BrowserElementScreenshotPreview = ({ screenshotBase64 }: { screenshotBase64: string }) => {
+	const [isOpen, setIsOpen] = useState(false)
+
+	return (
+		<div className='w-fit'>
+			<button
+				className='text-[10px] px-1 py-0.5 rounded-sm border border-void-border-1 bg-void-bg-2 hover:brightness-95 text-void-fg-3'
+				onClick={(e) => {
+					e.stopPropagation()
+					setIsOpen(v => !v)
+				}}
+			>
+				{isOpen ? 'Hide screenshot' : 'Show screenshot'}
+			</button>
+			{isOpen ? (
+				<img
+					className='mt-1 max-w-[280px] rounded-sm border border-void-border-1'
+					src={`data:image/png;base64,${screenshotBase64}`}
+					alt='Selected element screenshot'
+					loading='lazy'
+				/>
+			) : null}
+		</div>
+	)
+}
+
+
 export const SelectedFiles = (
 	{ type, selections, setSelections, showProspectiveSelections, messageIdx, }:
 		| { type: 'past', selections: StagingSelectionItem[]; setSelections?: undefined, showProspectiveSelections?: undefined, messageIdx: number, }
@@ -702,14 +737,16 @@ export const SelectedFiles = (
 
 				const thisKey = selection.type === 'CodeSelection' ? selection.type + selection.language + selection.range + selection.state.wasAddedAsCurrentFile + selection.uri.fsPath
 					: selection.type === 'File' ? selection.type + selection.language + selection.state.wasAddedAsCurrentFile + selection.uri.fsPath
-						: selection.type === 'Folder' ? selection.type + selection.language + selection.state + selection.uri.fsPath
-							: i
+						: selection.type === 'Folder' ? selection.type + selection.uri.fsPath
+							: selection.type === 'BrowserElement' ? selection.type + selection.pageUrl + selection.selector
+								: i
 
 				const SelectionIcon = (
 					selection.type === 'File' ? File
 						: selection.type === 'Folder' ? Folder
 							: selection.type === 'CodeSelection' ? Text
-								: (undefined as never)
+								: selection.type === 'BrowserElement' ? Globe
+									: (undefined as never)
 				)
 
 				return <div // container for summarybox and code
@@ -719,7 +756,9 @@ export const SelectedFiles = (
 					{/* tooltip for file path */}
 					<span className="truncate overflow-hidden text-ellipsis"
 						data-tooltip-id='void-tooltip'
-						data-tooltip-content={getRelative(selection.uri, accessor)}
+						data-tooltip-content={selection.type === 'BrowserElement'
+							? `${selection.pageUrl}${selection.selector ? ` • ${selection.selector}` : ''}`
+							: getRelative(selection.uri, accessor)}
 						data-tooltip-place='top'
 						data-tooltip-delay-show={3000}
 					>
@@ -765,13 +804,19 @@ export const SelectedFiles = (
 								else if (selection.type === 'Folder') {
 									// TODO!!! reveal in tree
 								}
+								else if (selection.type === 'BrowserElement') {
+									commandService.executeCommand('simpleBrowser.show', selection.pageUrl).then(() => { }, () => { })
+								}
 							}}
 						>
 							{<SelectionIcon size={10} />}
 
 							{ // file name and range
-								getBasename(selection.uri.fsPath)
-								+ (selection.type === 'CodeSelection' ? ` (${selection.range[0]}-${selection.range[1]})` : '')
+								(selection.type === 'BrowserElement'
+									? getBrowserElementLabel(selection)
+									: getBasename(selection.uri.fsPath)
+									+ (selection.type === 'CodeSelection' ? ` (${selection.range[0]}-${selection.range[1]})` : '')
+								)
 							}
 
 							{selection.type === 'File' && selection.state.wasAddedAsCurrentFile && messageIdx === undefined && currentURI?.fsPath === selection.uri.fsPath ?
@@ -799,6 +844,10 @@ export const SelectedFiles = (
 							}
 						</div>
 					</span>
+
+					{selection.type === 'BrowserElement' && selection.screenshot ? (
+						<BrowserElementScreenshotPreview screenshotBase64={selection.screenshot} />
+					) : null}
 				</div>
 
 			})}

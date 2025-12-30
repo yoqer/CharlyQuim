@@ -191,6 +191,16 @@ button:focus {
 	font-size: 16px;
 }
 
+.controls button.active {
+	color: var(--vscode-button-foreground);
+	background: var(--vscode-button-background);
+}
+
+.controls button.active:hover:not(:disabled) {
+	color: var(--vscode-button-foreground);
+	background: var(--vscode-button-hoverBackground);
+}
+
 .content {
 	width: 100%;
 	height: 100%;
@@ -395,4 +405,94 @@ body.loading iframe {
 	color: var(--vscode-descriptionForeground, rgba(255, 255, 255, 0.7));
 	margin-top: 4px;
 	word-break: break-word;
+}
+
+/* Element selection overlay (Cursor-style) */
+.element-selection-overlay {
+	display: none;
+	position: absolute;
+	inset: 0;
+	z-index: 1000;
+	background: var(--vscode-editor-background);
+	pointer-events: none;
+}
+
+.element-selection-overlay.active {
+	display: flex;
+	flex-direction: column;
+	pointer-events: auto;
+}
+
+.element-selection-banner {
+	display: flex;
+	align-items: baseline;
+	gap: 12px;
+	padding: 8px 10px;
+	border-bottom: 1px solid var(--vscode-panel-border, var(--vscode-editorWidget-border, rgba(0, 0, 0, 0.15)));
+	background: var(--vscode-editorWidget-background, rgba(0, 0, 0, 0.04));
+	user-select: none;
+}
+
+.element-selection-title {
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--vscode-foreground);
+}
+
+.element-selection-hint {
+	font-size: 11px;
+	color: var(--vscode-descriptionForeground);
+	opacity: 0.9;
+}
+
+.element-selection-stage {
+	flex: 1;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	overflow: hidden;
+	padding: 10px;
+}
+
+.element-selection-image-wrapper {
+	position: relative;
+	display: inline-block;
+	max-width: 100%;
+	max-height: 100%;
+}
+
+.element-selection-image {
+	display: block;
+	max-width: 100%;
+	max-height: 100%;
+	border: 1px solid var(--vscode-panel-border, rgba(0, 0, 0, 0.12));
+	background: var(--vscode-editor-background);
+	user-select: none;
+	-webkit-user-drag: none;
+}
+
+.element-selection-highlight {
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 0;
+	height: 0;
+	border: 2px solid var(--vscode-focusBorder, #0078d4);
+	box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.04);
+	border-radius: 4px;
+	pointer-events: none;
+	display: none;
+}
+
+.element-selection-highlight.visible {
+	display: block;
+}
+
+.element-selection-status {
+	min-height: 18px;
+	padding: 4px 10px 8px;
+	font-size: 11px;
+	color: var(--vscode-descriptionForeground);
+	opacity: 0.9;
+	user-select: none;
 }

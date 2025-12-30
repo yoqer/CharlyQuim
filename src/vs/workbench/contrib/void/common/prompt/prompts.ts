@@ -674,10 +674,12 @@ Tips:
 		name: 'browser_get_content',
 		description: `Get the page title and full HTML content.
 
-WORKFLOW TIP: Use this FIRST when working with complex pages to:
-- Identify accurate CSS selectors for interactions
-- Understand page structure before clicking/filling
-- Verify dynamic content has loaded
+WORKFLOW TIP: For most use cases, use browser_snapshot FIRST. It provides a cleaner, semantic view of interactive elements.
+
+Use browser_get_content when you need:
+- Raw HTML for parsing specific attributes
+- Non-interactive content (paragraphs, headings)
+- Verification of HTML structure
 
 Tips:
 - Use this to inspect the DOM and choose accurate CSS selectors.
@@ -705,6 +707,13 @@ Tips:
 	browser_evaluate: {
 		name: 'browser_evaluate',
 		description: `Execute JavaScript in the page context and return the result.
+
+NOTE: For DOM inspection and finding elements, prefer browser_snapshot instead. It provides structured, semantic information without requiring JavaScript.
+
+Use browser_evaluate ONLY when you need to:
+- Compute dynamic values (e.g., count elements)
+- Access non-standard DOM properties
+- Execute custom logic that accessibility tree doesn't provide
 
 Tips:
 - Keep scripts small and deterministic.
@@ -745,6 +754,51 @@ Tips:
 		params: {},
 		example: `<browser_get_url>
 	</browser_get_url>`,
+	},
+
+	browser_snapshot: {
+		name: 'browser_snapshot',
+		description: `Get the page's accessibility tree structure (semantic DOM representation).
+
+RECOMMENDED: Use this as your PRIMARY tool for understanding page structure. It provides a clean, semantic view of interactive elements optimized for AI agents.
+
+Advantages over browser_get_content:
+- Filtered to interactive/semantic elements only (buttons, links, inputs)
+- Much smaller output (no styling/scripts/non-semantic HTML)
+- Includes ARIA roles and accessible names
+- Better for identifying clickable/typeable elements
+
+Advantages over browser_evaluate:
+- No JavaScript knowledge required
+- Structured, consistent format
+- Includes accessibility metadata (labels, roles, states)
+- Automatically generates CSS selectors for each element
+
+Returns hierarchical tree of interactive elements with:
+- role: ARIA role (button, link, textbox, checkbox, etc.)
+- name: Accessible name (button label, link text, input placeholder)
+- selector: CSS selector to use with browser_click/browser_type
+- children: Nested interactive elements
+
+Use Cases:
+- Finding buttons/links: Look for role='button' or role='link'
+- Finding form fields: Look for role='textbox', 'combobox', 'checkbox'
+- Understanding page structure before interaction
+- Verifying dynamic content has loaded`,
+		params: {
+			interesting_only: { description: 'Optional. If true (default), filters out non-interactive elements. Set false to include all nodes including generic containers.' },
+			max_depth: { description: 'Optional. Maximum tree depth (1-10). Default: 10. Use lower values (3-5) for large pages.' },
+		},
+		example: `Find and click submit button:
+<browser_snapshot>
+<interesting_only>true</interesting_only>
+<max_depth>5</max_depth>
+</browser_snapshot>
+
+Use selector from snapshot:
+<browser_click>
+<selector>button[type="submit"]</selector>
+</browser_click>`,
 	},
 
 	update_todo_list: {
@@ -860,17 +914,19 @@ PATTERN 3 (Edit - sequential, alone):
 PATTERN 4 (Browser Automation - speed-first):
 FAST (static/simple pages):
 <browser_navigate><url>https://example.com</url><wait_until>load</wait_until></browser_navigate>
+<browser_snapshot><interesting_only>true</interesting_only></browser_snapshot>
 <browser_click><selector>button[type="submit"]</selector></browser_click>
 
 RELIABLE (dynamic/SPA pages):
 <browser_navigate><url>https://app.com</url><wait_until>domcontentloaded</wait_until></browser_navigate>
 <browser_wait_for_selector><selector>.dashboard</selector><visible>true</visible></browser_wait_for_selector>
-<browser_get_content></browser_get_content>
+<browser_snapshot><max_depth>5</max_depth></browser_snapshot>
 <browser_click><selector>button[data-testid="action"]</selector></browser_click>
 
 AVOID:
-- Using browser_get_content on every step (only when needed)
-- Using networkidle2 unless truly necessary (slow)
+- Using browser_evaluate for DOM inspection (use browser_snapshot)
+- Using browser_get_content on every step (only when raw HTML needed)
+- Using networkidle2 unless necessary (slow)
 - Using fragile selectors like :nth-child(3)`
 }
 
@@ -1338,6 +1394,35 @@ export const messageOfSelection = async (
 		}))
 		const contentStr = [folderStructure, ...strOfFiles].join('\n\n')
 		return contentStr
+	}
+	else if (s.type === 'BrowserElement') {
+		const attrs = Object.entries(s.elementData.attributes || {}).slice(0, 50)
+		const attrsStr = attrs.length
+			? attrs.map(([k, v]) => `  ${k}="${String(v)}"`).join('\n')
+			: '  (none)'
+
+		const classesStr = (s.elementData.classes || []).length ? (s.elementData.classes || []).join(', ') : '(none)'
+		const idStr = s.elementData.id ?? '(none)'
+		const selectorChainStr = s.selectorChain?.length ? s.selectorChain.join(' >>> ') : undefined
+
+		const screenshotStr = s.screenshot ? '\n\n[Screenshot attached as image]' : ''
+
+		return `--- Browser Element ---
+Page: ${s.pageUrl}
+Selector: ${s.selector}${selectorChainStr && selectorChainStr !== s.selector ? `\nSelector chain: ${selectorChainStr}` : ''}
+Tag: <${s.elementData.tagName}>
+ID: ${idStr}
+Classes: ${classesStr}
+Attributes:
+${attrsStr}
+
+Text content:
+${s.elementData.text || '(none)'}
+
+HTML:
+${tripleTick[0]}html
+${s.elementData.html || ''}
+${tripleTick[1]}${screenshotStr}`
 	}
 	else
 		return ''

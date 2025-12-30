@@ -22,6 +22,7 @@ import { VOID_CTRL_L_ACTION_ID } from './actionIDs.js';
 import { localize2 } from '../../../../nls.js';
 import { IChatThreadService } from './chatThreadService.js';
 import { IViewsService } from '../../../services/views/common/viewsService.js';
+import { StagingSelectionItem } from '../common/chatThreadServiceTypes.js';
 
 // ---------- Register commands and keybindings ----------
 
@@ -71,6 +72,56 @@ registerAction2(class extends Action2 {
 		const chatThreadsService = accessor.get(IChatThreadService)
 		viewsService.openViewContainer(VOID_VIEW_CONTAINER_ID)
 		await chatThreadsService.focusCurrentChat()
+	}
+})
+
+
+const VOID_ADD_BROWSER_ELEMENT_SELECTION_ACTION_ID = 'void.addBrowserElementSelection'
+registerAction2(class extends Action2 {
+	constructor() {
+		super({ id: VOID_ADD_BROWSER_ELEMENT_SELECTION_ACTION_ID, title: 'Void: Add Browser Element Selection', f1: false });
+	}
+	async run(accessor: ServicesAccessor, payload: any): Promise<void> {
+		const chatThreadService = accessor.get(IChatThreadService)
+
+		if (!payload || typeof payload !== 'object') {
+			throw new Error('Invalid BrowserElement payload')
+		}
+		if (payload.type !== 'BrowserElement') {
+			throw new Error('Invalid BrowserElement payload type')
+		}
+		if (typeof payload.pageUrl !== 'string' || typeof payload.selector !== 'string') {
+			throw new Error('Invalid BrowserElement payload')
+		}
+		if (!payload.elementData || typeof payload.elementData !== 'object') {
+			throw new Error('Invalid BrowserElement payload')
+		}
+
+		let screenshot: string | null = typeof payload.screenshot === 'string' ? payload.screenshot : null
+		if (screenshot && screenshot.startsWith('data:')) {
+			const match = screenshot.match(/^data:image\/[^;]+;base64,(.+)$/)
+			screenshot = match?.[1] || null
+		}
+
+		const elementData = payload.elementData as any
+		const selection: StagingSelectionItem = {
+			type: 'BrowserElement',
+			selector: payload.selector,
+			selectorChain: Array.isArray(payload.selectorChain) ? payload.selectorChain.filter((s: any) => typeof s === 'string') : undefined,
+			pageUrl: payload.pageUrl,
+			elementData: {
+				tagName: typeof elementData.tagName === 'string' ? elementData.tagName : '',
+				id: typeof elementData.id === 'string' ? elementData.id : null,
+				classes: Array.isArray(elementData.classes) ? elementData.classes.filter((s: any) => typeof s === 'string') : [],
+				attributes: elementData.attributes && typeof elementData.attributes === 'object' ? elementData.attributes : {},
+				text: typeof elementData.text === 'string' ? elementData.text : '',
+				html: typeof elementData.html === 'string' ? elementData.html : '',
+			},
+			screenshot,
+			timestamp: typeof payload.timestamp === 'number' ? payload.timestamp : Date.now(),
+		}
+
+		chatThreadService.addNewStagingSelection(selection)
 	}
 })
 

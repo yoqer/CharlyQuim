@@ -136,4 +136,9 @@ import { IBrowserAutomationService } from '../../../../platform/browserAutomatio
 		return await browserAutomationService.clearCookies(params);
 	});
 
+	CommandsRegistry.registerCommand('_browserAutomation.snapshot', async (accessor, params) => {
+		const browserAutomationService = accessor.get(IBrowserAutomationService);
+		return await browserAutomationService.snapshot(params);
+	});
+
 })();

@@ -97,6 +97,26 @@ export type StagingSelectionItem = {
 	uri: URI;
 	language?: undefined;
 	state?: undefined;
+} | {
+	type: 'BrowserElement';
+	/**
+	 * Best-effort selector for the element. For Shadow DOM, this may be a "deep" selector
+	 * (e.g. segments joined by `>>>`) and `selectorChain` provides the segments.
+	 */
+	selector: string;
+	selectorChain?: string[];
+	pageUrl: string;
+	elementData: {
+		tagName: string;
+		id: string | null;
+		classes: string[];
+		attributes: Record<string, string>;
+		text: string;
+		html: string;
+	};
+	/** Base64-encoded PNG (no `data:` prefix) */
+	screenshot: string | null;
+	timestamp: number;
 }
 
 

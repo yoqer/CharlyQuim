@@ -9,7 +9,7 @@ import { QueryBuilder } from '../../../services/search/common/queryBuilder.js'
 import { ISearchService } from '../../../services/search/common/search.js'
 import { IEditCodeService } from './editCodeServiceInterface.js'
 import { ITerminalToolService } from './terminalToolService.js'
-import { LintErrorItem, BuiltinToolCallParams, BuiltinToolResultType, BuiltinToolName, NavigationWaitCondition } from '../common/toolsServiceTypes.js'
+import { LintErrorItem, BuiltinToolCallParams, BuiltinToolResultType, BuiltinToolName, NavigationWaitCondition, AccessibilityNode } from '../common/toolsServiceTypes.js'
 import { parseMarkdownChecklist, validateTodoItems } from '../common/chatThreadServiceTypes.js'
 import { IVoidModelService } from '../common/voidModelService.js'
 import { EndOfLinePreference } from '../../../../editor/common/model.js'
@@ -432,6 +432,20 @@ export class ToolsService implements IToolsService {
 
 			browser_get_url: (_params: RawToolParamsObj): BuiltinToolCallParams['browser_get_url'] => {
 				return {}
+			},
+
+			browser_snapshot: (params: RawToolParamsObj): BuiltinToolCallParams['browser_snapshot'] => {
+				const interestingOnly = validateBoolean(params.interesting_only, { default: true })
+
+				let maxDepth = validateNumber(params.max_depth, { default: 10 })
+				if (maxDepth !== null) {
+					if (maxDepth < 1) maxDepth = 1
+					if (maxDepth > 10) maxDepth = 10
+				} else {
+					maxDepth = 10
+				}
+
+				return { interestingOnly, maxDepth }
 			},
 
 			update_todo_list: (params: RawToolParamsObj): BuiltinToolCallParams['update_todo_list'] => {
@@ -891,6 +905,41 @@ Troubleshooting:
 				}
 			},
 
+			browser_snapshot: async ({ interestingOnly, maxDepth }) => {
+				this._acquireMutatingLock('browser_snapshot')
+				try {
+					await ensureBrowserSession('browser_snapshot')
+
+					const options = { interestingOnly }
+					const snapshotResult = await executeBrowserAutomationResult<any>(
+						'browser_snapshot',
+						'simpleBrowser.automation.snapshot',
+						undefined,
+						options
+					)
+
+					if (!snapshotResult) {
+						return { result: { snapshot: null, truncated: false, nodeCount: 0 } }
+					}
+
+					// Post-process: add selectors and truncate depth
+					let nodeCount = 0
+					const processedSnapshot = this._processAccessibilityTree(
+						snapshotResult,
+						maxDepth,
+						(node) => { nodeCount++ }
+					)
+
+					// Check if output too large (>50KB JSON)
+					const jsonStr = JSON.stringify(processedSnapshot)
+					const truncated = jsonStr.length > 50_000
+
+					return { result: { snapshot: processedSnapshot, truncated, nodeCount } }
+				} finally {
+					this._releaseMutatingLock()
+				}
+			},
+
 			update_todo_list: async (params: BuiltinToolCallParams['update_todo_list']) => {
 				// 1. Input validation
 				if (!params.todos || params.todos.trim() === '') {
@@ -1103,6 +1152,67 @@ Troubleshooting:
 				return `Current page URL: ${result.url}`
 			},
 
+			browser_snapshot: (_params, result) => {
+				if (!result.snapshot) {
+					return 'Page has no accessibility tree (empty page or all content is inaccessible).'
+				}
+
+				// Format as structured text for LLM
+				const lines: string[] = []
+				lines.push(`Accessibility Snapshot (${result.nodeCount} nodes${result.truncated ? ', truncated' : ''}):`)
+				lines.push('')
+
+				const formatNode = (node: AccessibilityNode, indent: number = 0): void => {
+					const prefix = '  '.repeat(indent)
+
+					let line = `${prefix}- ${node.role}`
+					if (node.name) line += `: "${node.name}"`
+					if (node.value) line += ` (value: "${node.value}")`
+
+					// Add state indicators
+					const states: string[] = []
+					if (node.focused) states.push('focused')
+					if (node.disabled) states.push('disabled')
+					if (node.checked === true) states.push('checked')
+					if (node.checked === 'mixed') states.push('partially-checked')
+					if (node.expanded === true) states.push('expanded')
+					if (node.expanded === false) states.push('collapsed')
+
+					if (states.length > 0) {
+						line += ` [${states.join(', ')}]`
+					}
+
+					lines.push(line)
+
+					// Add selector
+					if (node.selector && !node.selector.includes('/*')) {
+						lines.push(`${prefix}  selector: ${node.selector}`)
+					}
+
+					// Add description
+					if (node.description) {
+						lines.push(`${prefix}  description: "${node.description}"`)
+					}
+
+					// Process children
+					if (node.children && node.children.length > 0) {
+						node.children.forEach(child => formatNode(child, indent + 1))
+					}
+				}
+
+				formatNode(result.snapshot)
+
+				const output = lines.join('\n')
+
+				// Safety truncation
+				const MAX_LLM_OUTPUT = 15_000
+				if (output.length > MAX_LLM_OUTPUT) {
+					return output.substring(0, MAX_LLM_OUTPUT) + '\n\n... (output truncated, use smaller max_depth)'
+				}
+
+				return output
+			},
+
 			update_todo_list: (params, result) => {
 				return `Successfully updated TODO list with ${result.todosCount} items.`;
 			},
@@ -1140,6 +1250,99 @@ Troubleshooting:
 
 		if (!lintErrors.length) return { lintErrors: null }
 		return { lintErrors, }
+	}
+
+	/**
+	 * Process accessibility tree: add selectors, truncate depth, count nodes
+	 */
+	private _processAccessibilityTree(
+		node: any,
+		maxDepth: number,
+		onNode?: (node: any) => void,
+		currentDepth: number = 0,
+		ancestorSelectors: string[] = []
+	): AccessibilityNode | null {
+		if (!node || currentDepth > maxDepth) {
+			return null
+		}
+
+		if (onNode) onNode(node)
+
+		const processed: AccessibilityNode = {
+			role: node.role || 'unknown',
+		}
+
+		// Add optional properties
+		if (node.name) processed.name = node.name
+		if (node.value) processed.value = node.value
+		if (node.description) processed.description = node.description
+		if (node.focused) processed.focused = node.focused
+		if (node.disabled) processed.disabled = node.disabled
+		if (node.checked !== undefined) processed.checked = node.checked
+		if (node.expanded !== undefined) processed.expanded = node.expanded
+		if (node.level !== undefined) processed.level = node.level
+
+		// Generate CSS selector
+		processed.selector = this._generateSelectorForNode(node, ancestorSelectors)
+
+		// Process children recursively
+		if (node.children && node.children.length > 0 && currentDepth < maxDepth) {
+			const childSelectors = processed.selector ? [...ancestorSelectors, processed.selector] : ancestorSelectors
+			processed.children = node.children
+				.map((child: any) => this._processAccessibilityTree(child, maxDepth, onNode, currentDepth + 1, childSelectors))
+				.filter((child: AccessibilityNode | null) => child !== null) as AccessibilityNode[]
+
+			if (processed.children.length === 0) {
+				delete processed.children
+			}
+		}
+
+		return processed
+	}
+
+	/**
+	 * Generate CSS selector for accessibility node
+	 */
+	private _generateSelectorForNode(node: any, ancestorSelectors: string[]): string {
+		const roleToElement: Record<string, string> = {
+			'button': 'button',
+			'link': 'a',
+			'textbox': 'input[type="text"], input:not([type]), textarea',
+			'searchbox': 'input[type="search"]',
+			'combobox': 'select',
+			'checkbox': 'input[type="checkbox"]',
+			'radio': 'input[type="radio"]',
+			'heading': 'h1, h2, h3, h4, h5, h6',
+			'img': 'img',
+			'list': 'ul, ol',
+			'listitem': 'li',
+			'navigation': 'nav',
+			'main': 'main',
+			'form': 'form',
+		}
+
+		const element = roleToElement[node.role] || '*'
+		const parts: string[] = [element]
+
+		// Add ARIA role if not matching element
+		if (node.role && !roleToElement[node.role]) {
+			parts[0] = `[role="${node.role}"]`
+		}
+
+		// Add name-based selectors
+		if (node.name && node.name.length > 0 && node.name.length < 100) {
+			const nameParts: string[] = [`[aria-label="${node.name}"]`]
+			parts.push(`:is(${nameParts.join(', ')})`)
+		}
+
+		let selector = parts.join('')
+
+		// Add name as hint
+		if (node.name) {
+			selector = `${selector} /* "${node.name.substring(0, 30)}${node.name.length > 30 ? '...' : ''}" */`
+		}
+
+		return selector
 	}
 
 

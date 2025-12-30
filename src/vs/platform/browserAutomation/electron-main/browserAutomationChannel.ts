@@ -66,6 +66,8 @@ export class BrowserAutomationChannel implements IServerChannel {
 				return this.service.setCookies(arg);
 			case 'clearCookies':
 				return this.service.clearCookies(arg);
+			case 'snapshot':
+				return this.service.snapshot(arg);
 			default:
 				throw new Error(`Call not found: ${command}`);
 		}

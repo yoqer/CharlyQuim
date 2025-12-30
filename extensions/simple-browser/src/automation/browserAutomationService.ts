@@ -890,6 +890,43 @@ export class BrowserAutomationService {
 	}
 
 	/**
+	 * Get accessibility snapshot
+	 */
+	async snapshot(sessionId: string, options?: { interestingOnly?: boolean }): Promise<AutomationResult<any>> {
+		try {
+			this.syncBrowserUI('Getting Accessibility Snapshot', 'Analyzing page structure...');
+
+			const result = await vscode.commands.executeCommand<AutomationResult<any>>(
+				'_browserAutomation.snapshot',
+				{ sessionId, options }
+			);
+
+			if (result?.success && result.data) {
+				const countNodes = (node: any): number => {
+					if (!node) return 0;
+					let count = 1;
+					if (node.children) {
+						count += node.children.reduce((sum: number, child: any) => sum + countNodes(child), 0);
+					}
+					return count;
+				};
+
+				const nodeCount = countNodes(result.data);
+				this.syncBrowserUI('Snapshot Retrieved', `${nodeCount} accessible elements found`);
+			} else if (result?.success) {
+				this.syncBrowserUI('Snapshot Retrieved', 'Empty page structure');
+			}
+
+			return result || { success: false, error: 'Failed to get accessibility snapshot' };
+		} catch (error) {
+			return {
+				success: false,
+				error: error instanceof Error ? error.message : 'Unknown error'
+			};
+		}
+	}
+
+	/**
 	 * Dispose and clean up
 	 */
 	dispose() {

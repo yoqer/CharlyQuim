@@ -45,6 +45,25 @@ import { RawMCPToolCall } from '../common/mcpServiceTypes.js';
 const CHAT_RETRIES = 3
 const RETRY_DELAY = 2500
 
+const MAX_BROWSER_ELEMENT_SCREENSHOT_CHARS = 1_000_000
+
+const mergeUniqueImages = (images: Array<string | undefined | null> | undefined): string[] | undefined => {
+	if (!images) return undefined
+	const unique = Array.from(new Set(images.filter((i): i is string => typeof i === 'string' && i.length > 0)))
+	return unique.length ? unique : undefined
+}
+
+const imagesOfSelections = (selections: StagingSelectionItem[]): string[] => {
+	const imgs: string[] = []
+	for (const s of selections) {
+		if (s.type !== 'BrowserElement') continue
+		if (!s.screenshot) continue
+		if (s.screenshot.length > MAX_BROWSER_ELEMENT_SCREENSHOT_CHARS) continue
+		imgs.push(`data:image/png;base64,${s.screenshot}`)
+	}
+	return imgs
+}
+
 
 const findStagingSelectionIndex = (currentSelections: StagingSelectionItem[] | undefined, newSelection: StagingSelectionItem): number | null => {
 	if (!currentSelections) return null
@@ -52,20 +71,26 @@ const findStagingSelectionIndex = (currentSelections: StagingSelectionItem[] | u
 	for (let i = 0; i < currentSelections.length; i += 1) {
 		const s = currentSelections[i]
 
-		if (s.uri.fsPath !== newSelection.uri.fsPath) continue
+		if (s.type !== newSelection.type) continue
 
 		if (s.type === 'File' && newSelection.type === 'File') {
+			if (s.uri.fsPath !== newSelection.uri.fsPath) continue
 			return i
 		}
 		if (s.type === 'CodeSelection' && newSelection.type === 'CodeSelection') {
 			if (s.uri.fsPath !== newSelection.uri.fsPath) continue
-			// if there's any collision return true
 			const [oldStart, oldEnd] = s.range
 			const [newStart, newEnd] = newSelection.range
 			if (oldStart !== newStart || oldEnd !== newEnd) continue
 			return i
 		}
 		if (s.type === 'Folder' && newSelection.type === 'Folder') {
+			if (s.uri.fsPath !== newSelection.uri.fsPath) continue
+			return i
+		}
+		if (s.type === 'BrowserElement' && newSelection.type === 'BrowserElement') {
+			if (s.pageUrl !== newSelection.pageUrl) continue
+			if (s.selector !== newSelection.selector) continue
 			return i
 		}
 	}
@@ -1414,7 +1439,11 @@ We only need to do it for files that were edited since `from`, ie files between 
 		const currSelns: StagingSelectionItem[] = _chatSelections ?? thread.state.stagingSelections
 
 		const userMessageContent = await chat_userMessageContent(instructions, currSelns, { directoryStrService: this._directoryStringService, fileService: this._fileService }) // user message + names of files (NOT content)
-		const userHistoryElt: ChatMessage = { role: 'user', content: userMessageContent, displayContent: instructions, selections: currSelns, images: _images, state: defaultMessageState }
+		const mergedImages = mergeUniqueImages([
+			...(_images ?? []),
+			...imagesOfSelections(currSelns),
+		])
+		const userHistoryElt: ChatMessage = { role: 'user', content: userMessageContent, displayContent: instructions, selections: currSelns, images: mergedImages, state: defaultMessageState }
 		this._addMessageToThread(threadId, userHistoryElt)
 
 		this._setThreadState(threadId, { currCheckpointIdx: null }) // no longer at a checkpoint because started streaming
@@ -1505,6 +1534,7 @@ We only need to do it for files that were edited since `from`, ie files between 
 			// URIs of user selections
 			if (m.role === 'user') {
 				for (const sel of m.selections ?? []) {
+					if (sel.type === 'BrowserElement') continue
 					addURI(sel.uri)
 				}
 			}

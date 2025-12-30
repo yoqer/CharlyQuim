@@ -14,6 +14,10 @@ interface SessionData {
 	createdAt: number;
 }
 
+interface AccessibilitySnapshotOptions {
+	interestingOnly?: boolean;
+}
+
 export class BrowserAutomationService implements IBrowserAutomationService {
 	readonly _serviceBrand: undefined;
 
@@ -513,6 +517,25 @@ export class BrowserAutomationService implements IBrowserAutomationService {
 			const client = await session.page.createCDPSession();
 			await client.send('Network.clearBrowserCookies');
 			return this.wrapResult(undefined);
+		} catch (error) {
+			return this.wrapError(error);
+		}
+	}
+
+	async snapshot(params: { sessionId: string; options?: AccessibilitySnapshotOptions }): Promise<IAutomationResult<any>> {
+		try {
+			const session = this.sessions.get(params.sessionId);
+			if (!session) {
+				return this.wrapError('Session not found');
+			}
+
+			// Call Puppeteer's accessibility.snapshot() API
+			const snapshot = await session.page.accessibility.snapshot({
+				interestingOnly: params.options?.interestingOnly ?? true
+			});
+
+			// snapshot can be null for empty pages
+			return this.wrapResult(snapshot);
 		} catch (error) {
 			return this.wrapError(error);
 		}

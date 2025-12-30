@@ -11,6 +11,20 @@ export type LintErrorItem = { code: string, message: string, startLineNumber: nu
 
 export type NavigationWaitCondition = 'load' | 'domcontentloaded' | 'networkidle0' | 'networkidle2'
 
+export type AccessibilityNode = {
+	role: string;
+	name?: string;
+	value?: string;
+	description?: string;
+	selector?: string;
+	focused?: boolean;
+	disabled?: boolean;
+	checked?: boolean | 'mixed';
+	expanded?: boolean;
+	level?: number;
+	children?: AccessibilityNode[];
+}
+
 // Partial of IFileStat
 export type ShallowDirectoryItem = {
 	uri: URI;
@@ -39,6 +53,7 @@ export const approvalTypeOfBuiltinToolName: Partial<{ [T in BuiltinToolName]?: '
 	'browser_evaluate': 'browser_automation',
 	'browser_wait_for_selector': 'browser_automation',
 	'browser_get_url': 'browser_automation',
+	'browser_snapshot': 'browser_automation',
 }
 
 
@@ -83,6 +98,7 @@ export type BuiltinToolCallParams = {
 	'browser_evaluate': { script: string },
 	'browser_wait_for_selector': { selector: string, timeout: number, visible: boolean, hidden: boolean },
 	'browser_get_url': {},
+	'browser_snapshot': { interestingOnly: boolean, maxDepth: number },
 	// ---
 	'update_todo_list': { todos: string },
 }
@@ -117,6 +133,7 @@ export type BuiltinToolResultType = {
 	'browser_evaluate': { result: unknown },
 	'browser_wait_for_selector': { selector: string },
 	'browser_get_url': { url: string },
+	'browser_snapshot': { snapshot: AccessibilityNode | null, truncated: boolean, nodeCount: number },
 	// ---
 	'update_todo_list': { success: boolean, todosCount: number },
 }
