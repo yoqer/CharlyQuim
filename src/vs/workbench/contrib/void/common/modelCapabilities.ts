@@ -124,7 +124,8 @@ export const defaultModelsOfProvider = {
 		'anthropic/claude-3.5-sonnet',
 		'deepseek/deepseek-r1',
 		'deepseek/deepseek-r1-zero:free',
-		'mistralai/devstral-small:free'
+		'mistralai/devstral-small:free',
+		'openai/gpt-5',
 		// 'openrouter/quasar-alpha',
 		// 'google/gemini-2.5-pro-preview-03-25',
 		// 'mistralai/codestral-2501',
@@ -306,6 +307,17 @@ const openSourceModelOptions_assumingOAICompat = {
 		reasoningCapabilities: false,
 		contextWindow: 32_000, reservedOutputTokenSpace: 4_096,
 	},
+
+	// GLM family (fallback defaults for OpenRouter z-ai/glm-* models)
+	'glm4.6': {
+		supportsFIM: false,
+		supportsSystemMessage: 'system-role',
+		specialToolFormat: 'openai-style',
+		reasoningCapabilities: false,
+		contextWindow: 200_000, reservedOutputTokenSpace: 4_096,
+	},
+
+
 	// llama 4 https://ai.meta.com/blog/llama-4-multimodal-intelligence/
 	'llama4-scout': {
 		supportsFIM: false,
@@ -441,6 +453,9 @@ const extensiveModelOptionsFallback: VoidStaticProviderInfo['modelOptionsFallbac
 	if (lower.includes('phi4')) return toFallback(openSourceModelOptions_assumingOAICompat, 'phi4')
 	if (lower.includes('codestral')) return toFallback(openSourceModelOptions_assumingOAICompat, 'codestral')
 	if (lower.includes('devstral')) return toFallback(openSourceModelOptions_assumingOAICompat, 'devstral')
+	// GLM: map to glm4.6 defaults (covers z-ai/glm-4.6 and similar)
+	if (lower.includes('glm')) return toFallback(openSourceModelOptions_assumingOAICompat, 'glm4.6')
+
 
 	if (lower.includes('gemma')) return toFallback(openSourceModelOptions_assumingOAICompat, 'gemma')
 
@@ -519,13 +534,7 @@ const anthropicModelOptions = {
 		supportsFIM: false,
 		specialToolFormat: 'anthropic-style',
 		supportsSystemMessage: 'separated',
-		reasoningCapabilities: {
-			supportsReasoning: true,
-			canTurnOffReasoning: true,
-			canIOReasoning: true,
-			reasoningReservedOutputTokenSpace: 8192, // can bump it to 128_000 with beta mode output-128k-2025-02-19
-			reasoningSlider: { type: 'budget_slider', min: 1024, max: 8192, default: 1024 }, // they recommend batching if max > 32_000. we cap at 8192 because above is typically not necessary (often even buggy)
-		},
+		reasoningCapabilities: false,
 
 	},
 	'claude-3-5-sonnet-20241022': {
@@ -740,7 +749,6 @@ const xAIModelOptions = {
 		downloadable: false,
 		supportsFIM: false,
 		supportsSystemMessage: 'system-role',
-		specialToolFormat: 'openai-style',
 		reasoningCapabilities: false,
 	},
 	'grok-3': {
@@ -932,6 +940,8 @@ const deepseekModelOptions = {
 		reservedOutputTokenSpace: 8_000, // 8_000,
 		cost: { cache_read: .07, input: .27, output: 1.10, },
 		downloadable: false,
+		supportsSystemMessage: 'system-role',
+		specialToolFormat: 'openai-style',
 	},
 	'deepseek-reasoner': {
 		...openSourceModelOptions_assumingOAICompat.deepseekCoderV2,
@@ -939,6 +949,8 @@ const deepseekModelOptions = {
 		reservedOutputTokenSpace: 8_000, // 8_000,
 		cost: { cache_read: .14, input: .55, output: 2.19, },
 		downloadable: false,
+		supportsSystemMessage: 'system-role',
+		specialToolFormat: 'openai-style',
 	},
 } as const satisfies { [s: string]: VoidStaticModelInfo }
 
@@ -1292,6 +1304,15 @@ const openRouterModelOptions_assumingOpenAICompat = {
 		supportsSystemMessage: 'system-role',
 		reasoningCapabilities: false,
 	},
+	'qwen/qwen2.5-coder-7b-instruct': {
+		contextWindow: 128_000,
+		reservedOutputTokenSpace: null,
+		cost: { input: 0, output: 0 },
+		downloadable: false,
+		supportsFIM: true,
+		supportsSystemMessage: 'system-role',
+		reasoningCapabilities: false,
+	},
 	'google/gemini-2.0-flash-lite-preview-02-05:free': {
 		contextWindow: 1_048_576,
 		reservedOutputTokenSpace: null,
@@ -1326,6 +1347,7 @@ const openRouterModelOptions_assumingOpenAICompat = {
 		cost: { input: 0.8, output: 2.4 },
 		downloadable: false,
 	},
+
 	'anthropic/claude-opus-4': {
 		contextWindow: 200_000,
 		reservedOutputTokenSpace: null,
@@ -1339,6 +1361,45 @@ const openRouterModelOptions_assumingOpenAICompat = {
 		contextWindow: 200_000,
 		reservedOutputTokenSpace: null,
 		cost: { input: 15.00, output: 75.00 },
+		downloadable: false,
+		supportsFIM: false,
+		supportsSystemMessage: 'system-role',
+		reasoningCapabilities: false,
+	},
+	'z-ai/glm-4.6': {
+		contextWindow: 200_000,
+		reservedOutputTokenSpace: null,
+		cost: { input: 0, output: 0 },
+		downloadable: false,
+		supportsFIM: false,
+		supportsSystemMessage: 'system-role',
+		specialToolFormat: 'openai-style',
+		reasoningCapabilities: false,
+	},
+	'openai/gpt-5': {
+		contextWindow: 400_000,
+		reservedOutputTokenSpace: null,
+		cost: { input: 10.00, output: 40.00 },
+		downloadable: false,
+		supportsFIM: false,
+		supportsSystemMessage: 'system-role',
+		specialToolFormat: 'openai-style',
+		reasoningCapabilities: { supportsReasoning: true, canTurnOffReasoning: false, canIOReasoning: false, reasoningSlider: { type: 'effort_slider', values: ['low', 'medium', 'high'], default: 'medium' } },
+	},
+	'openai/gpt-5-codex': {
+		contextWindow: 128_000,
+		reservedOutputTokenSpace: null,
+		cost: { input: 0.10, output: 0.40 },
+		downloadable: false,
+		supportsFIM: false,
+		supportsSystemMessage: 'system-role',
+		specialToolFormat: 'openai-style',
+		reasoningCapabilities: false,
+	},
+	'google/gemini-2.5-pro': {
+		contextWindow: 1_048_576,
+		reservedOutputTokenSpace: null,
+		cost: { input: 0.10, output: 0.40 },
 		downloadable: false,
 		supportsFIM: false,
 		supportsSystemMessage: 'system-role',
@@ -1532,20 +1593,17 @@ export type SendableReasoningInfo = {
 
 
 export const getIsReasoningEnabledState = (
-	featureName: FeatureName,
+	_featureName: FeatureName,
 	providerName: ProviderName,
 	modelName: string,
-	modelSelectionOptions: ModelSelectionOptions | undefined,
+	_modelSelectionOptions: ModelSelectionOptions | undefined,
 	overridesOfModel: OverridesOfModel | undefined,
 ) => {
-	const { supportsReasoning, canTurnOffReasoning } = getModelCapabilities(providerName, modelName, overridesOfModel).reasoningCapabilities || {}
+	const { supportsReasoning } = getModelCapabilities(providerName, modelName, overridesOfModel).reasoningCapabilities || {}
 	if (!supportsReasoning) return false
 
-	// default to enabled if can't turn off, or if the featureName is Chat.
-	const defaultEnabledVal = featureName === 'Chat' || !canTurnOffReasoning
-
-	const isReasoningEnabled = modelSelectionOptions?.reasoningEnabled ?? defaultEnabledVal
-	return isReasoningEnabled
+	// Force reasoning on when supported; ignore user overrides.
+	return true
 }
 
 
@@ -1559,27 +1617,26 @@ export const getReservedOutputTokenSpace = (providerName: ProviderName, modelNam
 
 // used to force reasoning state (complex) into something simple we can just read from when sending a message
 export const getSendableReasoningInfo = (
-	featureName: FeatureName,
+	_featureName: FeatureName,
 	providerName: ProviderName,
 	modelName: string,
-	modelSelectionOptions: ModelSelectionOptions | undefined,
+	_modelSelectionOptions: ModelSelectionOptions | undefined,
 	overridesOfModel: OverridesOfModel | undefined,
 ): SendableReasoningInfo => {
 
-	const { reasoningSlider: reasoningBudgetSlider } = getModelCapabilities(providerName, modelName, overridesOfModel).reasoningCapabilities || {}
-	const isReasoningEnabled = getIsReasoningEnabledState(featureName, providerName, modelName, modelSelectionOptions, overridesOfModel)
-	if (!isReasoningEnabled) return null
+	const { reasoningSlider: reasoningBudgetSlider, supportsReasoning } = getModelCapabilities(providerName, modelName, overridesOfModel).reasoningCapabilities || {}
+	if (!supportsReasoning) return null
+
+	const isReasoningEnabled = true
 
 	// check for reasoning budget
-	const reasoningBudget = reasoningBudgetSlider?.type === 'budget_slider' ? modelSelectionOptions?.reasoningBudget ?? reasoningBudgetSlider?.default : undefined
-	if (reasoningBudget) {
-		return { type: 'budget_slider_value', isReasoningEnabled: isReasoningEnabled, reasoningBudget: reasoningBudget }
+	if (reasoningBudgetSlider?.type === 'budget_slider') {
+		return { type: 'budget_slider_value', isReasoningEnabled, reasoningBudget: reasoningBudgetSlider.default }
 	}
 
 	// check for reasoning effort
-	const reasoningEffort = reasoningBudgetSlider?.type === 'effort_slider' ? modelSelectionOptions?.reasoningEffort ?? reasoningBudgetSlider?.default : undefined
-	if (reasoningEffort) {
-		return { type: 'effort_slider_value', isReasoningEnabled: isReasoningEnabled, reasoningEffort: reasoningEffort }
+	if (reasoningBudgetSlider?.type === 'effort_slider') {
+		return { type: 'effort_slider_value', isReasoningEnabled, reasoningEffort: reasoningBudgetSlider.default }
 	}
 
 	return null

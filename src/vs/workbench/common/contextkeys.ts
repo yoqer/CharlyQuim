@@ -111,6 +111,7 @@ export const StatusBarFocused = new RawContextKey<boolean>('statusBarFocused', f
 
 export const TitleBarStyleContext = new RawContextKey<string>('titleBarStyle', 'custom', localize('titleBarStyle', "Style of the window title bar"));
 export const TitleBarVisibleContext = new RawContextKey<boolean>('titleBarVisible', false, localize('titleBarVisible', "Whether the title bar is visible"));
+export const AgentEditorModeContext = new RawContextKey<string>('agentEditorMode', 'editor', { type: 'string', description: localize('agentEditorMode', "The current Agent/Editor mode in the title bar, either 'agents' or 'editor'") });
 
 //#endregion
 
@@ -136,6 +137,15 @@ export const NotificationsToastsVisibleContext = new RawContextKey<boolean>('not
 export const ActiveAuxiliaryContext = new RawContextKey<string>('activeAuxiliary', '', localize('activeAuxiliary', "The identifier of the active auxiliary panel"));
 export const AuxiliaryBarFocusContext = new RawContextKey<boolean>('auxiliaryBarFocus', false, localize('auxiliaryBarFocus', "Whether the auxiliary bar has keyboard focus"));
 export const AuxiliaryBarVisibleContext = new RawContextKey<boolean>('auxiliaryBarVisible', false, localize('auxiliaryBarVisible', "Whether the auxiliary bar is visible"));
+
+//#endregion
+
+
+//#region < --- Chat History --- >
+
+export const ActiveChatHistoryContext = new RawContextKey<string>('activeChatHistory', '', localize('activeChatHistory', "The identifier of the active chat history view"));
+export const ChatHistoryFocusContext = new RawContextKey<boolean>('chatHistoryFocus', false, localize('chatHistoryFocus', "Whether the chat history has keyboard focus"));
+export const ChatHistoryVisibleContext = new RawContextKey<boolean>('chatHistoryVisible', false, localize('chatHistoryVisible', "Whether the chat history is visible"));
 
 //#endregion
 

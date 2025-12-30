@@ -4,9 +4,19 @@
  *--------------------------------------------------------------------------------------*/
 
 import { URI } from '../../../../base/common/uri.js';
+import { generateUuid } from '../../../../base/common/uuid.js';
 import { VoidFileSnapshot } from './editCodeServiceTypes.js';
 import { AnthropicReasoning, RawToolParamsObj } from './sendLLMMessageTypes.js';
 import { ToolCallParams, ToolName, ToolResult } from './toolsServiceTypes.js';
+
+// TODO types
+export type TodoStatus = 'pending' | 'in_progress' | 'completed';
+
+export type TodoItem = {
+	id: string;
+	content: string;
+	status: TodoStatus;
+};
 
 export type ToolMessage<T extends ToolName> = {
 	role: 'tool';
@@ -53,6 +63,7 @@ export type ChatMessage =
 		content: string; // content displayed to the LLM on future calls - allowed to be '', will be replaced with (empty)
 		displayContent: string; // content displayed to user  - allowed to be '', will be ignored
 		selections: StagingSelectionItem[] | null; // the user's selection
+		images?: string[]; // Array of image URLs (data URIs or URLs) to send to AI
 		state: {
 			stagingSelections: StagingSelectionItem[];
 			isBeingEdited: boolean;
@@ -86,6 +97,26 @@ export type StagingSelectionItem = {
 	uri: URI;
 	language?: undefined;
 	state?: undefined;
+} | {
+	type: 'BrowserElement';
+	/**
+	 * Best-effort selector for the element. For Shadow DOM, this may be a "deep" selector
+	 * (e.g. segments joined by `>>>`) and `selectorChain` provides the segments.
+	 */
+	selector: string;
+	selectorChain?: string[];
+	pageUrl: string;
+	elementData: {
+		tagName: string;
+		id: string | null;
+		classes: string[];
+		attributes: Record<string, string>;
+		text: string;
+		html: string;
+	};
+	/** Base64-encoded PNG (no `data:` prefix) */
+	screenshot: string | null;
+	timestamp: number;
 }
 
 
@@ -100,3 +131,38 @@ export type CodespanLocationLink = {
 		endColumn: number,
 	} | undefined
 } | null
+
+// Shared utility functions for TODO list parsing and validation
+export function parseMarkdownChecklist(md: string): TodoItem[] {
+	const lines = md.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+	const todos: TodoItem[] = [];
+
+	for (const line of lines) {
+		const match = line.match(/^(?:-\s*)?\[\s*([ xX\-~])\s*\]\s+(.+)$/);
+		if (!match) continue;
+
+		let status: TodoStatus = 'pending';
+		if (match[1] === 'x' || match[1] === 'X') status = 'completed';
+		else if (match[1] === '-' || match[1] === '~') status = 'in_progress';
+
+		const id = generateUuid();
+		todos.push({ id, content: match[2], status });
+	}
+
+	return todos;
+}
+
+export function validateTodoItems(todos: TodoItem[]): { valid: boolean; error?: string } {
+	if (!Array.isArray(todos)) return { valid: false, error: 'todos must be an array' };
+
+	for (const [i, t] of todos.entries()) {
+		if (!t?.id || typeof t.id !== 'string')
+			return { valid: false, error: `Item ${i + 1} missing id` };
+		if (!t?.content || typeof t.content !== 'string')
+			return { valid: false, error: `Item ${i + 1} missing content` };
+		if (t.status && !['pending', 'in_progress', 'completed'].includes(t.status))
+			return { valid: false, error: `Item ${i + 1} has invalid status` };
+	}
+
+	return { valid: true };
+}

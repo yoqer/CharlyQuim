@@ -243,16 +243,43 @@ const openAITools = (chatMode: ChatMode | null, mcpTools: InternalToolInfo[] | u
 
 
 // convert LLM tool call to our tool format
+// convert LLM tool call to our tool format
 const rawToolCallObjOfParamsStr = (name: string, toolParamsStr: string, id: string): RawToolCallObj | null => {
 	let input: unknown
-	try { input = JSON.parse(toolParamsStr) }
-	catch (e) { return null }
+	try {
+		input = JSON.parse(toolParamsStr)
+	}
+	catch (e) {
+		// Attempt to parse partial JSON for UI display purposes
+		// This is a naive partial parser just to extract common fields like 'uri' if possible
+		try {
+			// Check if we can extract a URI-like string
+			// Look for "uri": "..." or "path": "..."
+			// This regex handles: "uri": "some/path  (and handles potential escapes loosely)
+			const uriMatch = toolParamsStr.match(/"(?:uri|path|file_path|target_file)"\s*:\s*"([^"]+)"?/)
+			if (uriMatch) {
+				const extractedUri = uriMatch[1]
+				input = { uri: extractedUri }
+			} else {
+				// If we can't parse it, and it's not valid JSON, we return null effectively for params,
+				// but we might want to return a dummy object if we simply want to show the tool exists?
+				// For now, let's return object with empty params if we have a name, so the tool shows up at least.
+				if (name) {
+					input = {}
+				} else {
+					return null
+				}
+			}
+		} catch (e2) {
+			return null
+		}
+	}
 
 	if (input === null) return null
 	if (typeof input !== 'object') return null
 
-	const rawParams: RawToolParamsObj = input
-	return { id, name, rawParams, doneParams: Object.keys(rawParams), isDone: true }
+	const rawParams: RawToolParamsObj = input as RawToolParamsObj
+	return { id, name, rawParams, doneParams: Object.keys(rawParams), isDone: true } // isDone is confusing here for streaming, but it fits the type
 }
 
 
@@ -329,9 +356,9 @@ const _sendOpenAICompatibleChat = async ({ messages, onText, onFinalMessage, onE
 	let fullReasoningSoFar = ''
 	let fullTextSoFar = ''
 
-	let toolName = ''
-	let toolId = ''
-	let toolParamsStr = ''
+	// 🚀 FIX: Track multiple tools by index for parallel tool calling support
+	const toolsByIndex = new Map<number, { name: string; id: string; paramsStr: string }>()
+	const allTools: { name: string; id: string; paramsStr: string }[] = []
 
 	openai.chat.completions
 		.create(options)
@@ -343,16 +370,56 @@ const _sendOpenAICompatibleChat = async ({ messages, onText, onFinalMessage, onE
 				const newText = chunk.choices[0]?.delta?.content ?? ''
 				fullTextSoFar += newText
 
-				// tool call
+				// tool call - handle ALL tool indices for parallel execution
 				for (const tool of chunk.choices[0]?.delta?.tool_calls ?? []) {
-					const index = tool.index
-					if (index !== 0) continue
+					const index = tool.index ?? 0
 
-					toolName += tool.function?.name ?? ''
-					toolParamsStr += tool.function?.arguments ?? '';
-					toolId += tool.id ?? ''
+					let toolData = toolsByIndex.get(index)
+
+					// Detect NEW tool on same index (sequential tool calling or collision)
+					const hasArgs = toolData && toolData.paramsStr.length > 0
+
+					// A new header usually implies a new tool if we already have data
+					// We check for:
+					// 1. Explicit ID mismatch (strongest signal)
+					// 2. Explicit 'function' type (strong signal of new tool start)
+					// 3. Name update when we already have args (sequential tool)
+					// 4. Name update when we already have a name (sequential tool with no args? - heuristic)
+
+					const isIdMismatch = toolData && tool.id && toolData.id && !toolData.id.startsWith(tool.id) && !tool.id.startsWith(toolData.id)
+					const isExplicitStart = tool.type === 'function' // Explicit start of new tool block
+
+					const isNameUpdate = !!tool.function?.name
+					// If we get a name update, and we already have a name... it's LIKELY a new tool if the previous one confusingly had no args/id.
+					// BUT we must be careful not to split "read" + "_file".
+					// However, "read_file" + "read_file" is a split.
+					// We can't easily distinguish "read" + "_file" from "read" + "file" (new tool).
+					// Relying on hasArgs is safest, but if args are empty, we fail.
+					// We'll trust isExplicitStart and isIdMismatch mainly.
+					// Fallback: If hasArgs AND isNameUpdate.
+
+					const shouldSplit = !toolData
+						|| isIdMismatch
+						|| (toolData && isExplicitStart)
+						|| (hasArgs && isNameUpdate)
+
+					if (shouldSplit) {
+						toolData = { name: '', id: '', paramsStr: '' }
+						toolsByIndex.set(index, toolData)
+						allTools.push(toolData)
+					}
+
+					if (!toolData) {
+						// Should not happen as we set it above, but for TS checks
+						toolData = { name: '', id: '', paramsStr: '' }
+						toolsByIndex.set(index, toolData)
+						allTools.push(toolData)
+					}
+
+					toolData.name += tool.function?.name ?? ''
+					toolData.paramsStr += tool.function?.arguments ?? ''
+					toolData.id += tool.id ?? ''
 				}
-
 
 				// reasoning
 				let newReasoning = ''
@@ -362,21 +429,42 @@ const _sendOpenAICompatibleChat = async ({ messages, onText, onFinalMessage, onE
 					fullReasoningSoFar += newReasoning
 				}
 
+				// For streaming, show first tool (if any) for backward compatibility
+				const firstTool = allTools[0]
+				const streamingToolCall = firstTool && firstTool.name ?
+					(rawToolCallObjOfParamsStr(firstTool.name, firstTool.paramsStr, firstTool.id) ?? { name: firstTool.name, rawParams: {}, isDone: false, doneParams: [], id: firstTool.id }) : undefined
+
+				// 🚀 FIX: Pass ALL streaming tools (using allTools to preserve order and history)
+				const streamingToolCalls = allTools
+					.map(t => rawToolCallObjOfParamsStr(t.name, t.paramsStr, t.id) ?? { name: t.name, rawParams: {}, isDone: false, doneParams: [], id: t.id })
+
 				// call onText
 				onText({
 					fullText: fullTextSoFar,
 					fullReasoning: fullReasoningSoFar,
-					toolCall: !toolName ? undefined : { name: toolName, rawParams: {}, isDone: false, doneParams: [], id: toolId },
+					toolCall: streamingToolCall,
+					toolCalls: streamingToolCalls.length > 0 ? streamingToolCalls : undefined,
 				})
 
 			}
-			// on final
-			if (!fullTextSoFar && !fullReasoningSoFar && !toolName) {
+			// on final - extract ALL completed tools
+			const allToolCalls = allTools
+				.map(toolData => rawToolCallObjOfParamsStr(toolData.name, toolData.paramsStr, toolData.id))
+				.filter((tc): tc is RawToolCallObj => tc !== null)
+
+			const toolCall = allToolCalls[0] // First tool for backward compatibility
+			const toolCalls = allToolCalls.length > 0 ? allToolCalls : undefined
+
+			const toolCallObj: { toolCall?: RawToolCallObj; toolCalls?: RawToolCallObj[] } = {}
+			if (toolCall) toolCallObj.toolCall = toolCall
+			if (toolCalls) toolCallObj.toolCalls = toolCalls
+
+			console.log(`[OpenAI SDK] Extracted ${allToolCalls.length} tool(s) from stream:`, allToolCalls.map(t => t.name).join(', '))
+
+			if (!fullTextSoFar && !fullReasoningSoFar && allToolCalls.length === 0) {
 				onError({ message: 'Void: Response from model was empty.', fullError: null })
 			}
 			else {
-				const toolCall = rawToolCallObjOfParamsStr(toolName, toolParamsStr, toolId)
-				const toolCallObj = toolCall ? { toolCall } : {}
 				onFinalMessage({ fullText: fullTextSoFar, fullReasoning: fullReasoningSoFar, anthropicReasoning: null, ...toolCallObj });
 			}
 		})
@@ -505,15 +593,26 @@ const sendAnthropicChat = async ({ messages, providerName, onText, onFinalMessag
 	let fullText = ''
 	let fullReasoning = ''
 
-	let fullToolName = ''
-	let fullToolParams = ''
-
+	// Track ALL tool calls
+	const allToolCalls: { name: string; paramsStr: string; id: string }[] = []
 
 	const runOnText = () => {
+		const streamingToolCalls = allToolCalls.map(t => rawToolCallObjOfParamsStr(t.name, t.paramsStr, t.id) ?? {
+			name: t.name,
+			rawParams: {},
+			isDone: false,
+			doneParams: [],
+			id: t.id
+		})
+
+		const firstTool = allToolCalls[0]
+		const toolCall = firstTool ? (rawToolCallObjOfParamsStr(firstTool.name, firstTool.paramsStr, firstTool.id) ?? { name: firstTool.name, rawParams: {}, isDone: false, doneParams: [], id: firstTool.id }) : undefined
+
 		onText({
 			fullText,
 			fullReasoning,
-			toolCall: !fullToolName ? undefined : { name: fullToolName, rawParams: {}, isDone: false, doneParams: [], id: 'dummy' },
+			toolCall,
+			toolCalls: streamingToolCalls.length > 0 ? streamingToolCalls : undefined,
 		})
 	}
 	// there are no events for tool_use, it comes in at the end
@@ -537,7 +636,12 @@ const sendAnthropicChat = async ({ messages, providerName, onText, onFinalMessag
 				runOnText()
 			}
 			else if (e.content_block.type === 'tool_use') {
-				fullToolName += e.content_block.name ?? '' // anthropic gives us the tool name in the start block
+				// Start a NEW tool call
+				allToolCalls.push({
+					name: e.content_block.name,
+					paramsStr: '',
+					id: e.content_block.id
+				})
 				runOnText()
 			}
 		}
@@ -553,7 +657,11 @@ const sendAnthropicChat = async ({ messages, providerName, onText, onFinalMessag
 				runOnText()
 			}
 			else if (e.delta.type === 'input_json_delta') { // tool use
-				fullToolParams += e.delta.partial_json ?? '' // anthropic gives us the partial delta (string) here - https://docs.anthropic.com/en/api/messages-streaming
+				// Append to the LAST tool call
+				const lastTool = allToolCalls[allToolCalls.length - 1]
+				if (lastTool) {
+					lastTool.paramsStr += e.delta.partial_json ?? ''
+				}
 				runOnText()
 			}
 		}
@@ -563,10 +671,20 @@ const sendAnthropicChat = async ({ messages, providerName, onText, onFinalMessag
 	stream.on('finalMessage', (response) => {
 		const anthropicReasoning = response.content.filter(c => c.type === 'thinking' || c.type === 'redacted_thinking')
 		const tools = response.content.filter(c => c.type === 'tool_use')
+
+		// Use the authoritative tools from the final response
+		const finalToolCalls = tools.map(tool => rawToolCallObjOfAnthropicParams(tool)).filter((tc): tc is RawToolCallObj => tc !== null)
+
+		const toolCall = finalToolCalls[0] // First tool for backward compatibility
+		const toolCalls = finalToolCalls.length > 0 ? finalToolCalls : undefined
 		// console.log('TOOLS!!!!!!', JSON.stringify(tools, null, 2))
 		// console.log('TOOLS!!!!!!', JSON.stringify(response, null, 2))
-		const toolCall = tools[0] && rawToolCallObjOfAnthropicParams(tools[0])
-		const toolCallObj = toolCall ? { toolCall } : {}
+
+		const toolCallObj: { toolCall?: RawToolCallObj; toolCalls?: RawToolCallObj[] } = {}
+		if (toolCall) toolCallObj.toolCall = toolCall
+		if (toolCalls) toolCallObj.toolCalls = toolCalls
+
+		console.log(`[Anthropic SDK] Extracted ${finalToolCalls.length} tool(s) from finalMessage:`, finalToolCalls.map(t => t.name).join(', '))
 
 		onFinalMessage({ fullText, fullReasoning, anthropicReasoning, ...toolCallObj })
 	})
@@ -773,10 +891,8 @@ const sendGeminiChat = async ({
 	let fullReasoningSoFar = ''
 	let fullTextSoFar = ''
 
-	let toolName = ''
-	let toolParamsStr = ''
-	let toolId = ''
-
+	// 🚀 FIX: Track multiple tools by ID for parallel tool calling support
+	const toolsById = new Map<string, { name: string; paramsStr: string }>()
 
 	genAI.models.generateContentStream({
 		model: modelName,
@@ -796,38 +912,83 @@ const sendGeminiChat = async ({
 				const newText = chunk.text ?? ''
 				fullTextSoFar += newText
 
-				// tool call
+				// tool call - handle ALL function calls for parallel execution
 				const functionCalls = chunk.functionCalls
 				if (functionCalls && functionCalls.length > 0) {
-					const functionCall = functionCalls[0] // Get the first function call
-					toolName = functionCall.name ?? ''
-					toolParamsStr = JSON.stringify(functionCall.args ?? {})
-					toolId = functionCall.id ?? ''
+					for (const functionCall of functionCalls) {
+						const toolId = functionCall.id ?? ''
+						if (!toolId) continue
+
+						// Initialize tool tracking for this ID if not exists
+						if (!toolsById.has(toolId)) {
+							toolsById.set(toolId, { name: '', paramsStr: '' })
+						}
+
+						const toolData = toolsById.get(toolId)!
+						toolData.name = functionCall.name ?? toolData.name
+						// Accumulate params if they come in chunks, otherwise use the full args
+						if (functionCall.args) {
+							toolData.paramsStr = JSON.stringify(functionCall.args)
+						}
+					}
 				}
 
 				// (do not handle reasoning yet)
+
+				// For streaming, show first tool (if any) for backward compatibility
+				const firstTool = Array.from(toolsById.entries())[0]
+				const streamingToolCall = firstTool && firstTool[1].name ?
+					(rawToolCallObjOfParamsStr(firstTool[1].name, firstTool[1].paramsStr, firstTool[0]) ?? { name: firstTool[1].name, rawParams: {}, isDone: false, doneParams: [], id: firstTool[0] }) : undefined
 
 				// call onText
 				onText({
 					fullText: fullTextSoFar,
 					fullReasoning: fullReasoningSoFar,
-					toolCall: !toolName ? undefined : { name: toolName, rawParams: {}, isDone: false, doneParams: [], id: toolId },
+					toolCall: streamingToolCall,
 				})
 			}
 
-			// on final
-			if (!fullTextSoFar && !fullReasoningSoFar && !toolName) {
+			// on final - extract ALL completed tools
+			const allToolCalls = Array.from(toolsById.entries())
+				.map(([toolId, toolData]) => {
+					// Generate ID if missing (Gemini sometimes doesn't provide IDs)
+					const finalId = toolId || generateUuid()
+					return rawToolCallObjOfParamsStr(toolData.name, toolData.paramsStr, finalId)
+				})
+				.filter((tc): tc is RawToolCallObj => tc !== null)
+
+			const toolCall = allToolCalls[0] // First tool for backward compatibility
+			const toolCalls = allToolCalls.length > 0 ? allToolCalls : undefined
+
+			const toolCallObj: { toolCall?: RawToolCallObj; toolCalls?: RawToolCallObj[] } = {}
+			if (toolCall) toolCallObj.toolCall = toolCall
+			if (toolCalls) toolCallObj.toolCalls = toolCalls
+
+			console.log(`[Gemini SDK] Extracted ${allToolCalls.length} tool(s) from stream:`, allToolCalls.map(t => t.name).join(', '))
+
+			if (!fullTextSoFar && !fullReasoningSoFar && allToolCalls.length === 0) {
 				onError({ message: 'Void: Response from model was empty.', fullError: null })
 			} else {
-				if (!toolId) toolId = generateUuid() // ids are empty, but other providers might expect an id
-				const toolCall = rawToolCallObjOfParamsStr(toolName, toolParamsStr, toolId)
-				const toolCallObj = toolCall ? { toolCall } : {}
 				onFinalMessage({ fullText: fullTextSoFar, fullReasoning: fullReasoningSoFar, anthropicReasoning: null, ...toolCallObj });
 			}
 		})
 		.catch(error => {
 			const message = error?.message
 			if (typeof message === 'string') {
+
+				// Check for image-related errors (model doesn't support images)
+				if (error.message?.includes('image') || error.message?.includes('vision') || error.message?.includes('404')) {
+					// Check specifically if it's about image support
+					if (error.message?.includes('No endpoints found that support image input') ||
+						error.message?.includes('does not support image') ||
+						(error.status === 404 && error.message?.includes('image'))) {
+						onError({
+							message: `This model (${modelName}) does not support image input. Please use a vision-capable model.)`,
+							fullError: error
+						});
+						return;
+					}
+				}
 
 				if (error.message?.includes('API key')) {
 					onError({ message: invalidApiKeyMessage(providerName), fullError: error });
