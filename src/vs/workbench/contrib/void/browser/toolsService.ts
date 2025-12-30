@@ -128,7 +128,7 @@ const checkIfIsFolder = (uriStr: string) => {
 	return false
 }
 
-const MAX_BROWSER_TIMEOUT_MS = 300_000
+const MAX_BROWSER_TIMEOUT_MS = 60_000 // 1 minute max (optimized for speed)
 const MAX_BROWSER_TYPE_DELAY_MS = 5_000
 
 type BrowserNavigationOptions = { timeout?: number; waitUntil?: NavigationWaitCondition }
@@ -168,7 +168,7 @@ const validateSelector = (selectorUnknown: unknown) => {
 		throw new Error(`Invalid LLM output format: selector must be a non-empty string.`)
 	}
 	if (selector.length > 500) {
-		throw new Error(`Selector too long (${selector.length} chars). Keep it under 500 characters.`)
+		throw new Error(`Selector too long (${selector.length} chars). Keep it under 500 characters. Simplify your selector or use a more specific target element.`)
 	}
 	return selector
 }
@@ -180,7 +180,7 @@ const validateTypeDelayMs = (delayUnknown: unknown, opts: { default: number }) =
 		throw new Error(`Invalid LLM output format: delay_ms must be an integer number of milliseconds. Full value: ${JSON.stringify(delayUnknown)}.`)
 	}
 	if (delayMs < 0 || delayMs > MAX_BROWSER_TYPE_DELAY_MS) {
-		throw new Error(`Invalid delay_ms: ${delayMs}. Must be between 0 and ${MAX_BROWSER_TYPE_DELAY_MS} ms.`)
+		throw new Error(`Invalid delay_ms: ${delayMs}. Must be between 0 and ${MAX_BROWSER_TYPE_DELAY_MS} ms. For instant fill without delay, use browser_fill instead.`)
 	}
 	return delayMs
 }
@@ -450,12 +450,22 @@ export class ToolsService implements IToolsService {
 				return `${msg} Try starting with browser_navigate first.`
 			}
 
-			if (lower.includes('timeout')) {
-				return `${msg} Consider increasing the timeout (ms) parameter.`
+			if (lower.includes('timeout') || lower.includes('timed out')) {
+				const hasWaitSelector = lower.includes('wait') && lower.includes('selector')
+				const suggestion = hasWaitSelector
+					? 'Element may not exist or took too long to appear. Verify selector with browser_get_content first.'
+					: 'Page may be slow or content is dynamic. Try: (1) Increase timeout parameter, (2) Use browser_wait_for_selector, or (3) Use faster wait_until like "load" or "domcontentloaded".'
+				return `${msg}\n\n${suggestion}`
 			}
 
 			if (lower.includes('no node found for selector') || lower.includes('failed to find') || lower.includes('selector')) {
-				return `${msg} If the selector seems wrong, use browser_get_content to inspect the DOM and choose a more stable CSS selector.`
+				return `${msg}
+
+Troubleshooting:
+1. Use browser_get_content to inspect the current DOM
+2. Try more specific selectors (data-testid, aria-label, name)
+3. Check if element is inside an iframe (requires different approach)
+4. Verify the element loaded (use browser_wait_for_selector first)`
 			}
 
 			if (lower.includes('chrome/chromium') && lower.includes('install')) {

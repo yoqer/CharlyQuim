@@ -575,6 +575,8 @@ Workflow: See <critical_execution_principles> (edit consolidation).`,
 		name: 'browser_navigate',
 		description: `Navigate the built-in browser to a URL and wait for page load.
 
+SPEED TIP: Use "domcontentloaded" for fastest navigation on simple pages, "load" (default) for most pages, or "networkidle2" only when dynamic content needs to settle.
+
 Notes:
 - The browser session is managed automatically (do not pass a session id).
 - URL must include the protocol (http:// or https://).
@@ -594,8 +596,13 @@ Notes:
 		name: 'browser_click',
 		description: `Click an element by CSS selector. Waits for the selector to be visible before clicking.
 
+SELECTOR STRATEGIES (prefer in this order):
+1. Stable attributes: [data-testid="submit"], [aria-label="Submit"], [name="submit"]
+2. Semantic selectors: button.primary, nav a[href="/login"]
+3. AVOID: :nth-child(), complex combinators (fragile)
+
 Tips:
-- Prefer stable selectors (data-testid, aria-label, name) over fragile ones (nth-child).
+- If uncertain about selectors, use browser_get_content first to inspect the DOM.
 - If the click triggers navigation, follow with browser_wait_for_selector or browser_get_url.`,
 		params: {
 			selector: { description: 'CSS selector to click (e.g., button[type="submit"]).' },
@@ -610,8 +617,10 @@ Tips:
 		name: 'browser_type',
 		description: `Type text into an element (character-by-character; dispatches keyboard events). Waits for the selector to be visible.
 
+PERFORMANCE: Each character incurs delay_ms (default 0). For instant fill without events, use browser_fill instead (much faster).
+
 Tips:
-- Use this when the page relies on key/input events.
+- Use this when the page relies on key/input events for validation or autocomplete.
 - For instant value assignment without key events, use browser_fill instead.`,
 		params: {
 			selector: { description: 'CSS selector to type into (e.g., input[name="q"]).' },
@@ -630,9 +639,11 @@ Tips:
 		name: 'browser_fill',
 		description: `Fill an input by setting its value instantly (no per-keystroke events). Waits for the selector to be visible.
 
+SPEED: Instant assignment, much faster than browser_type. Prefer this for simple forms.
+
 Tips:
-- Fast for simple forms.
-- If the page requires key/input events to update state, prefer browser_type.`,
+- Fast for simple forms where the page doesn't require keystroke events.
+- If the page requires key/input events to update state (validation, autocomplete), prefer browser_type.`,
 		params: {
 			selector: { description: 'CSS selector of the input/textarea element.' },
 			value: { description: 'Value to set.' },
@@ -662,6 +673,11 @@ Tips:
 	browser_get_content: {
 		name: 'browser_get_content',
 		description: `Get the page title and full HTML content.
+
+WORKFLOW TIP: Use this FIRST when working with complex pages to:
+- Identify accurate CSS selectors for interactions
+- Understand page structure before clicking/filling
+- Verify dynamic content has loaded
 
 Tips:
 - Use this to inspect the DOM and choose accurate CSS selectors.
@@ -704,6 +720,8 @@ Tips:
 	browser_wait_for_selector: {
 		name: 'browser_wait_for_selector',
 		description: `Wait for an element matching a CSS selector to appear.
+
+WHEN TO USE: For SPAs and dynamic content that loads after page navigation. Skip this for static pages (adds unnecessary delay).
 
 Tips:
 - Use this to synchronize with dynamic pages before clicking/typing/extracting.
@@ -837,7 +855,23 @@ PATTERN 2 (Read - parallel):
 <read_file><uri>src/types/User.ts</uri><start_line>1</start_line><end_line>80</end_line></read_file>
 
 PATTERN 3 (Edit - sequential, alone):
-<edit_file><uri>src/app.ts</uri><search_replace_blocks>...</search_replace_blocks></edit_file>`
+<edit_file><uri>src/app.ts</uri><search_replace_blocks>...</search_replace_blocks></edit_file>
+
+PATTERN 4 (Browser Automation - speed-first):
+FAST (static/simple pages):
+<browser_navigate><url>https://example.com</url><wait_until>load</wait_until></browser_navigate>
+<browser_click><selector>button[type="submit"]</selector></browser_click>
+
+RELIABLE (dynamic/SPA pages):
+<browser_navigate><url>https://app.com</url><wait_until>domcontentloaded</wait_until></browser_navigate>
+<browser_wait_for_selector><selector>.dashboard</selector><visible>true</visible></browser_wait_for_selector>
+<browser_get_content></browser_get_content>
+<browser_click><selector>button[data-testid="action"]</selector></browser_click>
+
+AVOID:
+- Using browser_get_content on every step (only when needed)
+- Using networkidle2 unless truly necessary (slow)
+- Using fragile selectors like :nth-child(3)`
 }
 
 export const reParsedToolXMLString = (toolName: ToolName, toolParams: RawToolParamsObj) => {

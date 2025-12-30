@@ -148,7 +148,7 @@ export class BrowserAutomationService implements IBrowserAutomationService {
 			}
 
 			// Navigate to URL
-			await page.goto(params.url, { waitUntil: 'networkidle2', timeout: 30000 });
+			await page.goto(params.url, { waitUntil: 'load', timeout: 10000 });
 
 			// Store session
 			this.sessions.set(params.sessionId, {
@@ -186,8 +186,8 @@ export class BrowserAutomationService implements IBrowserAutomationService {
 			}
 
 			await session.page.goto(params.url, {
-				waitUntil: params.options?.waitUntil ?? 'networkidle2',
-				timeout: params.options?.timeout ?? 30000
+				waitUntil: params.options?.waitUntil ?? 'load',
+				timeout: params.options?.timeout ?? 10000
 			});
 
 			const url = session.page.url();
@@ -204,7 +204,7 @@ export class BrowserAutomationService implements IBrowserAutomationService {
 				return this.wrapError('Session not found');
 			}
 
-			await session.page.goBack({ waitUntil: 'networkidle2' });
+			await session.page.goBack({ waitUntil: 'load' });
 			return this.wrapResult(undefined);
 		} catch (error) {
 			return this.wrapError(error);
@@ -218,7 +218,7 @@ export class BrowserAutomationService implements IBrowserAutomationService {
 				return this.wrapError('Session not found');
 			}
 
-			await session.page.goForward({ waitUntil: 'networkidle2' });
+			await session.page.goForward({ waitUntil: 'load' });
 			return this.wrapResult(undefined);
 		} catch (error) {
 			return this.wrapError(error);
@@ -232,7 +232,7 @@ export class BrowserAutomationService implements IBrowserAutomationService {
 				return this.wrapError('Session not found');
 			}
 
-			await session.page.reload({ waitUntil: 'networkidle2' });
+			await session.page.reload({ waitUntil: 'load' });
 			return this.wrapResult(undefined);
 		} catch (error) {
 			return this.wrapError(error);
@@ -448,7 +448,7 @@ export class BrowserAutomationService implements IBrowserAutomationService {
 			}
 
 			await session.page.waitForSelector(params.selector, {
-				timeout: params.options?.timeout ?? 30000,
+				timeout: params.options?.timeout ?? 10000,
 				visible: params.options?.visible,
 				hidden: params.options?.hidden
 			});
@@ -466,8 +466,8 @@ export class BrowserAutomationService implements IBrowserAutomationService {
 			}
 
 			await session.page.waitForNavigation({
-				timeout: params.options?.timeout ?? 30000,
-				waitUntil: params.options?.waitUntil ?? 'networkidle2'
+				timeout: params.options?.timeout ?? 10000,
+				waitUntil: params.options?.waitUntil ?? 'load'
 			});
 			return this.wrapResult(undefined);
 		} catch (error) {

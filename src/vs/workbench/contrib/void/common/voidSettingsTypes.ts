@@ -471,7 +471,7 @@ export const defaultGlobalSettings: GlobalSettings = {
 	disableSystemMessage: false,
 	autoAcceptLLMChanges: false,
 	enableBrowserTools: true,
-	browserDefaultTimeout: 30000, // 30 seconds
+	browserDefaultTimeout: 15000, // 15 seconds (optimized for speed)
 }
 
 export type GlobalSettingName = keyof GlobalSettings
