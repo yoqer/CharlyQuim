@@ -159,27 +159,11 @@ function reload(): void {
 	}
 }
 
-// Automation overlay elements
-const automationOverlay = document.getElementById('automation-overlay')!;
-const automationAction = automationOverlay.querySelector('.automation-action')!;
-const automationDetails = automationOverlay.querySelector('.automation-details')!;
-
-let automationTimeout: number | undefined;
-
-// Show automation activity overlay
-function showAutomationActivity(action: string, details?: string): void {
-	automationAction.textContent = action;
-	automationDetails.textContent = details || '';
-	automationOverlay.classList.add('visible');
-
-	// Auto-hide after 3 seconds
-	if (automationTimeout) {
-		clearTimeout(automationTimeout);
-	}
-	automationTimeout = window.setTimeout(() => {
-		automationOverlay.classList.remove('visible');
-	}, 3000);
-}
+// Automation overlay elements - disabled for production
+// const automationOverlay = document.getElementById('automation-overlay')!;
+// const automationAction = automationOverlay.querySelector('.automation-action')!;
+// const automationDetails = automationOverlay.querySelector('.automation-details')!;
+// let automationTimeout: number | undefined;
 
 // --- Element selection overlay state ---
 const elementSelectionOverlay = document.getElementById('element-selection-overlay')!;
@@ -213,12 +197,14 @@ function setHighlight(box: { x: number; y: number; width: number; height: number
 		return;
 	}
 
-	const wrapperRect = elementSelectionImageWrapper.getBoundingClientRect();
-	const scaleX = wrapperRect.width / latestScreenshotDims.width;
-	const scaleY = wrapperRect.height / latestScreenshotDims.height;
+	// Use the actual image's bounding rect, not the wrapper's, to match getPointInScreenshot()
+	const imageRect = elementSelectionImage.getBoundingClientRect();
+	const scaleX = imageRect.width / latestScreenshotDims.width;
+	const scaleY = imageRect.height / latestScreenshotDims.height;
 
-	const left = Math.max(0, box.x * scaleX);
-	const top = Math.max(0, box.y * scaleY);
+	// Position relative to the image's actual position
+	const left = Math.max(0, imageRect.left - elementSelectionImageWrapper.getBoundingClientRect().left + box.x * scaleX);
+	const top = Math.max(0, imageRect.top - elementSelectionImageWrapper.getBoundingClientRect().top + box.y * scaleY);
 	const width = Math.max(0, box.width * scaleX);
 	const height = Math.max(0, box.height * scaleY);
 
