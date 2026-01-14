@@ -124,14 +124,14 @@ const newOpenAICompatibleSDK = async ({ settingsOfProvider, providerName, includ
 	}
 	else if (providerName === 'awsBedrock') {
 		/**
-		  * We treat Bedrock as *OpenAI-compatible only through a proxy*:
-		  *   • LiteLLM default → http://localhost:4000/v1
-		  *   • Bedrock-Access-Gateway → https://<api-id>.execute-api.<region>.amazonaws.com/openai/
-		  *
-		  * The native Bedrock runtime endpoint
-		  *   https://bedrock-runtime.<region>.amazonaws.com
-		  * is **NOT** OpenAI-compatible, so we do *not* fall back to it here.
-		  */
+			* We treat Bedrock as *OpenAI-compatible only through a proxy*:
+			*   • LiteLLM default → http://localhost:4000/v1
+			*   • Bedrock-Access-Gateway → https://<api-id>.execute-api.<region>.amazonaws.com/openai/
+			*
+			* The native Bedrock runtime endpoint
+			*   https://bedrock-runtime.<region>.amazonaws.com
+			* is **NOT** OpenAI-compatible, so we do *not* fall back to it here.
+			*/
 		const { endpoint, apiKey } = settingsOfProvider.awsBedrock
 
 		// ① use the user-supplied proxy if present
@@ -341,7 +341,26 @@ const _sendOpenAICompatibleChat = async ({ messages, onText, onFinalMessage, onE
 			for await (const chunk of response) {
 				// message
 				const newText = chunk.choices[0]?.delta?.content ?? ''
-				fullTextSoFar += newText
+
+				// Handle Mistral's object content
+				if (providerName === 'mistral' && typeof newText === 'object' && newText !== null) {
+					// Parse Mistral's content object
+					if (Array.isArray(newText)) {
+						for (const item of newText as any[]) {
+							if (item.type === 'text' && item.text) {
+								fullTextSoFar += item.text
+							} else if (item.type === 'thinking' && item.thinking) {
+								for (const thinkingItem of item.thinking as any[]) {
+									if (thinkingItem.type === 'text' && thinkingItem.text) {
+										fullReasoningSoFar += thinkingItem.text
+									}
+								}
+							}
+						}
+					}
+				} else {
+					fullTextSoFar += newText
+				}
 
 				// tool call
 				for (const tool of chunk.choices[0]?.delta?.tool_calls ?? []) {
@@ -352,7 +371,6 @@ const _sendOpenAICompatibleChat = async ({ messages, onText, onFinalMessage, onE
 					toolParamsStr += tool.function?.arguments ?? '';
 					toolId += tool.id ?? ''
 				}
-
 
 				// reasoning
 				let newReasoning = ''
@@ -370,6 +388,7 @@ const _sendOpenAICompatibleChat = async ({ messages, onText, onFinalMessage, onE
 				})
 
 			}
+
 			// on final
 			if (!fullTextSoFar && !fullReasoningSoFar && !toolName) {
 				onError({ message: 'Void: Response from model was empty.', fullError: null })

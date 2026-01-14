@@ -73,6 +73,9 @@ export const defaultProviderSettings = {
 
 export const defaultModelsOfProvider = {
 	openAI: [ // https://platform.openai.com/docs/models/gp
+		'gpt-5',
+		'gpt-5-mini',
+		'gpt-5-nano',
 		'gpt-4.1',
 		'gpt-4.1-mini',
 		'gpt-4.1-nano',
@@ -99,11 +102,11 @@ export const defaultModelsOfProvider = {
 		'grok-3-mini-fast'
 	],
 	gemini: [ // https://ai.google.dev/gemini-api/docs/models/gemini
-		'gemini-2.5-pro-exp-03-25',
-		'gemini-2.5-flash-preview-04-17',
+		'gemini-2.5-pro',
+		'gemini-2.5-flash',
+		'gemini-2.5-flash-lite',
 		'gemini-2.0-flash',
 		'gemini-2.0-flash-lite',
-		'gemini-2.5-pro-preview-05-06',
 	],
 	deepseek: [ // https://api-docs.deepseek.com/quick_start/pricing
 		'deepseek-chat',
@@ -125,14 +128,6 @@ export const defaultModelsOfProvider = {
 		'deepseek/deepseek-r1',
 		'deepseek/deepseek-r1-zero:free',
 		'mistralai/devstral-small:free'
-		// 'openrouter/quasar-alpha',
-		// 'google/gemini-2.5-pro-preview-03-25',
-		// 'mistralai/codestral-2501',
-		// 'qwen/qwen-2.5-coder-32b-instruct',
-		// 'mistralai/mistral-small-3.1-24b-instruct:free',
-		// 'google/gemini-2.0-flash-lite-preview-02-05:free',
-		// 'google/gemini-2.0-pro-exp-02-05:free',
-		// 'google/gemini-2.0-flash-exp:free',
 	],
 	groq: [ // https://console.groq.com/docs/models
 		'qwen-qwq-32b',
@@ -141,12 +136,18 @@ export const defaultModelsOfProvider = {
 		// 'qwen-2.5-coder-32b', // preview mode (experimental)
 	],
 	mistral: [ // https://docs.mistral.ai/getting-started/models/models_overview/
-		'codestral-latest',
-		'devstral-small-latest',
+		// Magistral
+		'magistral-medium-latest',
+		'magistral-small-latest',
+		// Mistral
 		'mistral-large-latest',
 		'mistral-medium-latest',
-		'ministral-3b-latest',
-		'ministral-8b-latest',
+		'mistral-small-latest',
+		// Codestral
+		'codestral-latest',
+		// Devstral
+		'devstral-medium-latest',
+		'devstral-small-latest',
 	],
 	openAICompatible: [], // fallback
 	googleVertex: [],
@@ -285,6 +286,12 @@ const openSourceModelOptions_assumingOAICompat = {
 		reasoningCapabilities: false,
 		contextWindow: 131_000, reservedOutputTokenSpace: 8_192,
 	},
+	'magistral': {
+		supportsFIM: false,
+		supportsSystemMessage: 'system-role',
+		reasoningCapabilities: { supportsReasoning: true, canTurnOffReasoning: true, canIOReasoning: true, openSourceThinkTags: ['<think>', '</think>'] },
+		contextWindow: 131_000, reservedOutputTokenSpace: 8_192,
+	},
 	'openhands-lm-32b': { // https://www.all-hands.dev/blog/introducing-openhands-lm-32b----a-strong-open-coding-agent-model
 		supportsFIM: false,
 		supportsSystemMessage: 'system-role',
@@ -414,7 +421,8 @@ const extensiveModelOptionsFallback: VoidStaticProviderInfo['modelOptionsFallbac
 		};
 	}
 
-	if (lower.includes('gemini') && (lower.includes('2.5') || lower.includes('2-5'))) return toFallback(geminiModelOptions, 'gemini-2.5-pro-exp-03-25')
+	if (lower.includes('gemini') && (lower.includes('2.5') || lower.includes('2-5'))) return toFallback(geminiModelOptions, 'gemini-2.5-pro')
+	if (lower.includes('gemini') && (lower.includes('2.0') || lower.includes('2-0'))) return toFallback(geminiModelOptions, 'gemini-2.0-flash')
 
 	if (lower.includes('claude-3-5') || lower.includes('claude-3.5')) return toFallback(anthropicModelOptions, 'claude-3-5-sonnet-20241022')
 	if (lower.includes('claude')) return toFallback(anthropicModelOptions, 'claude-3-7-sonnet-20250219')
@@ -441,6 +449,7 @@ const extensiveModelOptionsFallback: VoidStaticProviderInfo['modelOptionsFallbac
 	if (lower.includes('phi4')) return toFallback(openSourceModelOptions_assumingOAICompat, 'phi4')
 	if (lower.includes('codestral')) return toFallback(openSourceModelOptions_assumingOAICompat, 'codestral')
 	if (lower.includes('devstral')) return toFallback(openSourceModelOptions_assumingOAICompat, 'devstral')
+	if (lower.includes('magistral')) return toFallback(openSourceModelOptions_assumingOAICompat, 'magistral')
 
 	if (lower.includes('gemma')) return toFallback(openSourceModelOptions_assumingOAICompat, 'gemma')
 
@@ -450,6 +459,9 @@ const extensiveModelOptionsFallback: VoidStaticProviderInfo['modelOptionsFallbac
 
 	if (lower.includes('quasar') || lower.includes('quaser')) return toFallback(openSourceModelOptions_assumingOAICompat, 'quasar')
 
+	if (lower.includes('gpt') && lower.includes('5') && (lower.includes('5') || lower.includes('5'))) return toFallback(openAIModelOptions, 'gpt-5')
+	if (lower.includes('gpt') && lower.includes('mini') && (lower.includes('5') || lower.includes('5'))) return toFallback(openAIModelOptions, 'gpt-5-mini')
+	if (lower.includes('gpt') && lower.includes('nano') && (lower.includes('5') || lower.includes('5'))) return toFallback(openAIModelOptions, 'gpt-5-nano')
 	if (lower.includes('gpt') && lower.includes('mini') && (lower.includes('4.1') || lower.includes('4-1'))) return toFallback(openAIModelOptions, 'gpt-4.1-mini')
 	if (lower.includes('gpt') && lower.includes('nano') && (lower.includes('4.1') || lower.includes('4-1'))) return toFallback(openAIModelOptions, 'gpt-4.1-nano')
 	if (lower.includes('gpt') && (lower.includes('4.1') || lower.includes('4-1'))) return toFallback(openAIModelOptions, 'gpt-4.1')
@@ -603,6 +615,36 @@ const anthropicSettings: VoidStaticProviderInfo = {
 
 // ---------------- OPENAI ----------------
 const openAIModelOptions = { // https://platform.openai.com/docs/pricing
+	'gpt-5': {
+		contextWindow: 400_000,
+		reservedOutputTokenSpace: 32_768,
+		cost: { input: 1.25, output: 10.00, cache_read: 0.125 },
+		downloadable: false,
+		supportsFIM: false,
+		specialToolFormat: 'openai-style',
+		supportsSystemMessage: 'developer-role',
+		reasoningCapabilities: { supportsReasoning: true, canTurnOffReasoning: false, canIOReasoning: false, reasoningSlider: { type: 'effort_slider', values: ['low', 'medium', 'high'], default: 'low' } },
+	},
+	'gpt-5-mini': {
+		contextWindow: 400_000,
+		reservedOutputTokenSpace: 32_768,
+		cost: { input: 0.25, output: 2.00, cache_read: 0.025 },
+		downloadable: false,
+		supportsFIM: false,
+		specialToolFormat: 'openai-style',
+		supportsSystemMessage: 'developer-role',
+		reasoningCapabilities: { supportsReasoning: true, canTurnOffReasoning: false, canIOReasoning: false, reasoningSlider: { type: 'effort_slider', values: ['low', 'medium', 'high'], default: 'low' } },
+	},
+	'gpt-5-nano': {
+		contextWindow: 400_000,
+		reservedOutputTokenSpace: 32_768,
+		cost: { input: 0.05, output: 0.04, cache_read: 0.005 },
+		downloadable: false,
+		supportsFIM: false,
+		specialToolFormat: 'openai-style',
+		supportsSystemMessage: 'developer-role',
+		reasoningCapabilities: { supportsReasoning: true, canTurnOffReasoning: false, canIOReasoning: false, reasoningSlider: { type: 'effort_slider', values: ['low', 'medium', 'high'], default: 'low' } },
+	},
 	'o3': {
 		contextWindow: 1_047_576,
 		reservedOutputTokenSpace: 32_768,
@@ -807,10 +849,10 @@ const xAISettings: VoidStaticProviderInfo = {
 // ---------------- GEMINI ----------------
 const geminiModelOptions = { // https://ai.google.dev/gemini-api/docs/pricing
 	// https://ai.google.dev/gemini-api/docs/thinking#set-budget
-	'gemini-2.5-pro-preview-05-06': {
+	'gemini-2.5-pro': {
 		contextWindow: 1_048_576,
 		reservedOutputTokenSpace: 8_192,
-		cost: { input: 0, output: 0 },
+		cost: { input: 1.25, output: 10.00 }, // TODO: check this
 		downloadable: false,
 		supportsFIM: false,
 		supportsSystemMessage: 'separated',
@@ -823,17 +865,7 @@ const geminiModelOptions = { // https://ai.google.dev/gemini-api/docs/pricing
 			reasoningReservedOutputTokenSpace: 8192,
 		},
 	},
-	'gemini-2.0-flash-lite': {
-		contextWindow: 1_048_576,
-		reservedOutputTokenSpace: 8_192,
-		cost: { input: 0, output: 0 },
-		downloadable: false,
-		supportsFIM: false,
-		supportsSystemMessage: 'separated',
-		specialToolFormat: 'gemini-style',
-		reasoningCapabilities: false, // no reasoning
-	},
-	'gemini-2.5-flash-preview-04-17': {
+	'gemini-2.5-flash': {
 		contextWindow: 1_048_576,
 		reservedOutputTokenSpace: 8_192,
 		cost: { input: 0.15, output: .60 }, // TODO $3.50 output with thinking not included
@@ -849,10 +881,10 @@ const geminiModelOptions = { // https://ai.google.dev/gemini-api/docs/pricing
 			reasoningReservedOutputTokenSpace: 8192,
 		},
 	},
-	'gemini-2.5-pro-exp-03-25': {
+	'gemini-2.5-flash-lite': {
 		contextWindow: 1_048_576,
 		reservedOutputTokenSpace: 8_192,
-		cost: { input: 0, output: 0 },
+		cost: { input: 0.15, output: .60 }, // TODO $3.50 output with thinking not included
 		downloadable: false,
 		supportsFIM: false,
 		supportsSystemMessage: 'separated',
@@ -875,46 +907,17 @@ const geminiModelOptions = { // https://ai.google.dev/gemini-api/docs/pricing
 		specialToolFormat: 'gemini-style',
 		reasoningCapabilities: false,
 	},
-	'gemini-2.0-flash-lite-preview-02-05': {
-		contextWindow: 1_048_576,
-		reservedOutputTokenSpace: 8_192, // 8_192,
-		cost: { input: 0.075, output: 0.30 },
-		downloadable: false,
-		supportsFIM: false,
-		supportsSystemMessage: 'separated',
-		specialToolFormat: 'gemini-style',
-		reasoningCapabilities: false,
-	},
-	'gemini-1.5-flash': {
-		contextWindow: 1_048_576,
-		reservedOutputTokenSpace: 8_192, // 8_192,
-		cost: { input: 0.075, output: 0.30 },  // TODO!!! price doubles after 128K tokens, we are NOT encoding that info right now
-		downloadable: false,
-		supportsFIM: false,
-		supportsSystemMessage: 'separated',
-		specialToolFormat: 'gemini-style',
-		reasoningCapabilities: false,
-	},
-	'gemini-1.5-pro': {
-		contextWindow: 2_097_152,
-		reservedOutputTokenSpace: 8_192,
-		cost: { input: 1.25, output: 5.00 },  // TODO!!! price doubles after 128K tokens, we are NOT encoding that info right now
-		downloadable: false,
-		supportsFIM: false,
-		supportsSystemMessage: 'separated',
-		specialToolFormat: 'gemini-style',
-		reasoningCapabilities: false,
-	},
-	'gemini-1.5-flash-8b': {
+	'gemini-2.0-flash-lite': {
 		contextWindow: 1_048_576,
 		reservedOutputTokenSpace: 8_192,
-		cost: { input: 0.0375, output: 0.15 },  // TODO!!! price doubles after 128K tokens, we are NOT encoding that info right now
+		cost: { input: 0, output: 0 },
 		downloadable: false,
 		supportsFIM: false,
 		supportsSystemMessage: 'separated',
 		specialToolFormat: 'gemini-style',
-		reasoningCapabilities: false,
+		reasoningCapabilities: false, // no reasoning
 	},
+
 } as const satisfies { [s: string]: VoidStaticModelInfo }
 
 const geminiSettings: VoidStaticProviderInfo = {
@@ -958,14 +961,15 @@ const deepseekSettings: VoidStaticProviderInfo = {
 // ---------------- MISTRAL ----------------
 
 const mistralModelOptions = { // https://mistral.ai/products/la-plateforme#pricing https://docs.mistral.ai/getting-started/models/models_overview/#premier-models
-	'mistral-large-latest': {
+	//
+	'mistral-large-latest': { // https://openrouter.ai/mistralai/mistral-large
 		contextWindow: 131_000,
 		reservedOutputTokenSpace: 8_192,
 		cost: { input: 2.00, output: 6.00 },
 		supportsFIM: false,
 		downloadable: { sizeGb: 73 },
 		supportsSystemMessage: 'system-role',
-		reasoningCapabilities: false,
+		reasoningCapabilities: { supportsReasoning: true, canIOReasoning: true, canTurnOffReasoning: false },
 	},
 	'mistral-medium-latest': { // https://openrouter.ai/mistralai/mistral-medium-3
 		contextWindow: 131_000,
@@ -974,9 +978,18 @@ const mistralModelOptions = { // https://mistral.ai/products/la-plateforme#prici
 		supportsFIM: false,
 		downloadable: { sizeGb: 'not-known' },
 		supportsSystemMessage: 'system-role',
-		reasoningCapabilities: false,
+		reasoningCapabilities: { supportsReasoning: true, canIOReasoning: true, canTurnOffReasoning: false },
 	},
-	'codestral-latest': {
+	'mistral-small-latest': { // https://openrouter.ai/mistralai/mistral-small-3-latest':
+		contextWindow: 131_000,
+		reservedOutputTokenSpace: 8_192,
+		cost: { input: 0.1, output: 0.30 },
+		supportsFIM: false,
+		downloadable: { sizeGb: 14 },
+		supportsSystemMessage: 'system-role',
+		reasoningCapabilities: { supportsReasoning: true, canIOReasoning: true, canTurnOffReasoning: false },
+	},
+	'codestral-latest': { // https://openrouter.ai/mistralai/codestral-2508
 		contextWindow: 256_000,
 		reservedOutputTokenSpace: 8_192,
 		cost: { input: 0.30, output: 0.90 },
@@ -985,51 +998,43 @@ const mistralModelOptions = { // https://mistral.ai/products/la-plateforme#prici
 		supportsSystemMessage: 'system-role',
 		reasoningCapabilities: false,
 	},
-	'magistral-medium-latest': {
+	'magistral-medium-latest': { // https://openrouter.ai/mistralai/magistral-medium-2506
 		contextWindow: 256_000,
 		reservedOutputTokenSpace: 8_192,
-		cost: { input: 0.30, output: 0.90 }, // TODO: check this
+		cost: { input: 2.00, output: 5.00 },
 		supportsFIM: true,
 		downloadable: { sizeGb: 13 },
 		supportsSystemMessage: 'system-role',
-		reasoningCapabilities: { supportsReasoning: true, canIOReasoning: true, canTurnOffReasoning: false, openSourceThinkTags: ['<think>', '</think>'] },
+		reasoningCapabilities: { supportsReasoning: true, canIOReasoning: true, canTurnOffReasoning: false },
 	},
-	'magistral-small-latest': {
+	'magistral-small-latest': { // https://openrouter.ai/mistralai/magistral-small-2506
 		contextWindow: 40_000,
 		reservedOutputTokenSpace: 8_192,
-		cost: { input: 0.30, output: 0.90 }, // TODO: check this
+		cost: { input: 0.50, output: 1.50 },
 		supportsFIM: true,
 		downloadable: { sizeGb: 13 },
 		supportsSystemMessage: 'system-role',
-		reasoningCapabilities: { supportsReasoning: true, canIOReasoning: true, canTurnOffReasoning: false, openSourceThinkTags: ['<think>', '</think>'] },
+		reasoningCapabilities: { supportsReasoning: true, canIOReasoning: true, canTurnOffReasoning: false },
+	},
+	'devstral-medium-latest': { //https://openrouter.ai/mistralai/devstral-medium
+		contextWindow: 131_000,
+		reservedOutputTokenSpace: 8_192,
+		cost: { input: 0.40, output: 2 },
+		supportsFIM: false,
+		downloadable: { sizeGb: 14 }, //https://ollama.com/library/devstral
+		supportsSystemMessage: 'system-role',
+		reasoningCapabilities: { supportsReasoning: true, canIOReasoning: true, canTurnOffReasoning: false },
 	},
 	'devstral-small-latest': { //https://openrouter.ai/mistralai/devstral-small:free
 		contextWindow: 131_000,
 		reservedOutputTokenSpace: 8_192,
-		cost: { input: 0, output: 0 },
+		cost: { input: 0.07, output: 0.28 },
 		supportsFIM: false,
 		downloadable: { sizeGb: 14 }, //https://ollama.com/library/devstral
 		supportsSystemMessage: 'system-role',
 		reasoningCapabilities: false,
 	},
-	'ministral-8b-latest': { // ollama 'mistral'
-		contextWindow: 131_000,
-		reservedOutputTokenSpace: 4_096,
-		cost: { input: 0.10, output: 0.10 },
-		supportsFIM: false,
-		downloadable: { sizeGb: 4.1 },
-		supportsSystemMessage: 'system-role',
-		reasoningCapabilities: false,
-	},
-	'ministral-3b-latest': {
-		contextWindow: 131_000,
-		reservedOutputTokenSpace: 4_096,
-		cost: { input: 0.04, output: 0.04 },
-		supportsFIM: false,
-		downloadable: { sizeGb: 'not-known' },
-		supportsSystemMessage: 'system-role',
-		reasoningCapabilities: false,
-	},
+
 } as const satisfies { [s: string]: VoidStaticModelInfo }
 
 const mistralSettings: VoidStaticProviderInfo = {
@@ -1077,7 +1082,7 @@ const groqModelOptions = { // https://console.groq.com/docs/models, https://groq
 		downloadable: false,
 		supportsFIM: false,
 		supportsSystemMessage: 'system-role',
-		reasoningCapabilities: { supportsReasoning: true, canIOReasoning: true, canTurnOffReasoning: false, openSourceThinkTags: ['<think>', '</think>'] }, // we're using reasoning_format:parsed so really don't need to know openSourceThinkTags
+		reasoningCapabilities: { supportsReasoning: true, canIOReasoning: true, canTurnOffReasoning: false }, // we're using reasoning_format:parsed so really don't need to know openSourceThinkTags
 	},
 } as const satisfies { [s: string]: VoidStaticModelInfo }
 const groqSettings: VoidStaticProviderInfo = {
