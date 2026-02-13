@@ -245,13 +245,10 @@ export class ChatExecutionEngine {
 				nAttempts += 1;
 				let lastUsageForTurn: LLMTokenUsage | undefined;
 
-				let limitsForThisRequest: any;
-void limitsForThisRequest;
 				try {
 					if (modelSelection) {
 						const { providerName, modelName } = modelSelection;
 						const caps = getModelCapabilities(providerName as any, modelName, overridesOfModel);
-						limitsForThisRequest = { contextWindow: caps.contextWindow };
 						const reserved = caps.reservedOutputTokenSpace ?? 0;
 						const maxInputTokens = Math.max(0, caps.contextWindow - reserved);
 						access.setThreadState(threadId, { tokenUsageLastRequestLimits: { maxInputTokens } });

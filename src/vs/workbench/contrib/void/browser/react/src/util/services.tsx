@@ -10,7 +10,7 @@ import { ColorScheme } from '../../../../../../../platform/theme/common/theme.js
 
 import { ServicesAccessor } from '../../../../../../../editor/browser/editorExtensions.js';
 import { IExplorerService } from '../../../../../../../workbench/contrib/files/browser/files.js'
-import { IModelService } from '../../../../../../../editor/common/services/model.js';
+import { IModelService } from '../../../../../../../editor/common/language/services/model.js';
 import { IClipboardService } from '../../../../../../../platform/clipboard/common/clipboardService.js';
 import { IContextViewService, IContextMenuService } from '../../../../../../../platform/contextview/browser/contextView.js';
 import { IFileService } from '../../../../../../../platform/files/common/files.js';
@@ -27,7 +27,7 @@ import { IContextKeyService } from '../../../../../../../platform/contextkey/com
 import { INotificationService } from '../../../../../../../platform/notification/common/notification.js'
 import { IAccessibilityService } from '../../../../../../../platform/accessibility/common/accessibility.js'
 import { ILanguageConfigurationService } from '../../../../../../../editor/common/languages/languageConfigurationRegistry.js'
-import { ILanguageFeaturesService } from '../../../../../../../editor/common/services/languageFeatures.js'
+import { ILanguageFeaturesService } from '../../../../../../../editor/common/language/services/languageFeatures.js'
 import { ILanguageDetectionService } from '../../../../../../services/languageDetection/common/languageDetectionWorkerService.js'
 import { IKeybindingService } from '../../../../../../../platform/keybinding/common/keybinding.js'
 import { IEnvironmentService } from '../../../../../../../platform/environment/common/environment.js'
@@ -38,7 +38,7 @@ import { IMetricsService } from '../../../../../../../platform/void/common/metri
 import { URI } from '../../../../../../../base/common/uri.js'
 import { IChatThreadService, ThreadsState, ThreadStreamState } from '../../../chatThreadService.js'
 import { ITerminalToolService } from '../../../terminalToolService.js'
-import { ILanguageService } from '../../../../../../../editor/common/languages/language.js'
+import { ILanguageService } from '../../../../../../../editor/common/language/language.js'
 import { IVoidModelService } from '../../../../common/voidModelService.js'
 import { IWorkspaceContextService } from '../../../../../../../platform/workspace/common/workspace.js'
 import { IVoidCommandBarService } from '../../../voidCommandBarService.js'

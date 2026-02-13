@@ -11,7 +11,7 @@ import { IDisposable } from '../../../../../../../base/common/lifecycle.js';
 import { Checkbox } from '../../../../../../../base/browser/ui/toggle/toggle.js';
 import { CodeEditorWidget } from '../../../../../../../editor/browser/widget/codeEditor/codeEditorWidget.js'
 import { useAccessor } from './services.js';
-import { ITextModel } from '../../../../../../../editor/common/model.js';
+import { ITextModel } from '../../../../../../../editor/common/language/model.js';
 import { asCssVariable } from '../../../../../../../platform/theme/common/colorUtils.js';
 import { inputBackground, inputForeground } from '../../../../../../../platform/theme/common/colorRegistry.js';
 import { useFloating, autoUpdate, offset, flip, shift, size,} from '@floating-ui/react';

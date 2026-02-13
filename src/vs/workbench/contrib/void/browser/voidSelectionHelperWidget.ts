@@ -213,7 +213,7 @@ export class SelectionHelperContribution extends Disposable implements IEditorCo
 			}
 		}
 
-		
+
 		targetLine = Math.max(1, Math.min(numLinesModel, targetLine));
 
 		let boxPos = getBoxPosition(targetLine);

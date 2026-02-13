@@ -149,7 +149,6 @@ export class ChatToolOutputManager {
 					16000;
 
 		const safeJson = (v: ToolOutputInput, max = 300): string => {
-void safeJson;
 			try {
 				const s = JSON.stringify(v);
 				return s.length > max ? s.slice(0, max) + '…' : s;

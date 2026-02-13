@@ -71,18 +71,18 @@ function findMatchingCurlyForwardJs(text: string, openIndex: number): number {
 	let mode: Mode = 'code';
 	let escaped = false;
 
-	
+
 	let templateNesting = 0;
 
-	
-	
+
+
 	const tplExprDepthStack: number[] = [];
 
 	while (i < text.length) {
 		const ch = text[i];
 		const next = text[i + 1];
 
-		
+
 		if (mode === 'line') {
 			if (ch === '\n') mode = 'code';
 			i++;
@@ -94,7 +94,7 @@ function findMatchingCurlyForwardJs(text: string, openIndex: number): number {
 			continue;
 		}
 
-		
+
 		if (mode === 'sgl' || mode === 'dbl') {
 			if (escaped) { escaped = false; i++; continue; }
 			if (ch === '\\') { escaped = true; i++; continue; }
@@ -113,16 +113,16 @@ function findMatchingCurlyForwardJs(text: string, openIndex: number): number {
 			if (escaped) { escaped = false; i++; continue; }
 			if (ch === '\\') { escaped = true; i++; continue; }
 
-			
+
 			if (ch === '$' && next === '{') {
-				tplExprDepthStack.push(depth); 
-				depth++;                       
+				tplExprDepthStack.push(depth);
+				depth++;
 				mode = 'code';
 				i += 2;
 				continue;
 			}
 
-			
+
 			if (ch === '`') {
 				templateNesting--;
 				mode = 'code';
@@ -135,15 +135,15 @@ function findMatchingCurlyForwardJs(text: string, openIndex: number): number {
 		}
 
 		// --- mode === 'code' ---
-		
+
 		if (ch === '/' && next === '/') { mode = 'line'; i += 2; continue; }
 		if (ch === '/' && next === '*') { mode = 'block'; i += 2; continue; }
 
-		
+
 		if (ch === '\'') { mode = 'sgl'; escaped = false; i++; continue; }
 		if (ch === '"') { mode = 'dbl'; escaped = false; i++; continue; }
 
-		
+
 		if (ch === '`') {
 			templateNesting++;
 			mode = 'template';
@@ -152,11 +152,11 @@ function findMatchingCurlyForwardJs(text: string, openIndex: number): number {
 			continue;
 		}
 
-		
+
 		if (ch === '{') { depth++; i++; continue; }
 		if (ch === '}') {
 			depth--;
-			
+
 			if (tplExprDepthStack.length > 0 && depth === tplExprDepthStack[tplExprDepthStack.length - 1]) {
 				tplExprDepthStack.pop();
 				if (templateNesting > 0) {
