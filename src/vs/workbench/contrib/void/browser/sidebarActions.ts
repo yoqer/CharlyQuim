@@ -13,7 +13,7 @@ import { KeybindingWeight } from '../../../../platform/keybinding/common/keybind
 import { ContextKeyExpr } from '../../../../platform/contextkey/common/contextkey.js';
 
 import { ICodeEditorService } from '../../../../editor/browser/services/codeEditorService.js';
-import { IRange } from '../../../../editor/common/core/range.js';
+import { IRange } from '../../../../editor/common/language/core/range.js';
 import { VOID_VIEW_CONTAINER_ID, VOID_VIEW_ID } from './sidebarPane.js';
 import { IMetricsService } from '../../../../platform/void/common/metricsService.js';
 import { ICommandService } from '../../../../platform/commands/common/commands.js';

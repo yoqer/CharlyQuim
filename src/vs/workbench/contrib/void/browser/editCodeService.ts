@@ -9,11 +9,11 @@ import { registerSingleton, InstantiationType } from '../../../../platform/insta
 import { ICodeEditor, IOverlayWidget, IViewZone } from '../../../../editor/browser/editorBrowser.js';
 import { ICodeEditorService } from '../../../../editor/browser/services/codeEditorService.js';
 import { findDiffs } from './helpers/findDiffs.js';
-import { EndOfLinePreference, IModelDecorationOptions, ITextModel } from '../../../../editor/common/model.js';
-import { IRange } from '../../../../editor/common/core/range.js';
-import { IModelService } from '../../../../editor/common/services/model.js';
-import { ITreeSitterParserService } from '../../../../editor/common/services/treeSitterParserService.js';
-import { getModuleLocation } from '../../../../editor/common/services/treeSitter/treeSitterLanguages.js';
+import { EndOfLinePreference, IModelDecorationOptions, ITextModel } from '../../../../editor/common/language/model.js';
+import { IRange } from '../../../../editor/common/language/core/range.js';
+import { IModelService } from '../../../../editor/common/language/services/model.js';
+import { ITreeSitterParserService } from '../../../../editor/common/language/services/treeSitterParserService.js';
+import { getModuleLocation } from '../../../../editor/common/language/services/treeSitter/treeSitterLanguages.js';
 import { IUndoRedoElement, IUndoRedoService, UndoRedoElementType } from '../../../../platform/undoRedo/common/undoRedo.js';
 import { RenderOptions } from '../../../../editor/browser/widget/diffEditor/components/diffEditorViewZones/renderLines.js';
 import { IInstantiationService } from '../../../../platform/instantiation/common/instantiation.js';
@@ -31,7 +31,7 @@ import { VOID_ACCEPT_DIFF_ACTION_ID, VOID_REJECT_DIFF_ACTION_ID } from './action
 import { IWorkspaceContextService } from '../../../../platform/workspace/common/workspace.js';
 import { mountCtrlK } from './react/out/quick-edit-tsx/index.js'
 import { QuickEditPropsType } from './quickEditActions.js';
-import { IModelContentChangedEvent } from '../../../../editor/common/textModelEvents.js';
+import { IModelContentChangedEvent } from '../../../../editor/common/language/textModelEvents.js';
 import { INotificationService, } from '../../../../platform/notification/common/notification.js';
 import { ILogService } from '../../../../platform/log/common/log.js';
 import { EditorOption } from '../../../../editor/common/config/editorOptions.js';
@@ -1062,7 +1062,9 @@ export class EditCodeService extends Disposable implements IEditCodeService {
 
 	public processRawKeybindingText(keybindingStr: string): string {
 		return keybindingStr
-			.replace(/Enter/g, '↵') // ⏎
+			// allow-any-unicode-next-line
+			.replace(/Enter/g, '↵')
+			// allow-any-unicode-next-line
 			.replace(/Backspace/g, '⌫');
 	}
 
@@ -2861,7 +2863,6 @@ export class EditCodeService extends Disposable implements IEditCodeService {
 		let entitiesDetected = false;
 		let entitiesAutoFixed = false;
 
-		
 		if (this.shouldDecodeEntities(originalSnippet, updatedSnippet, fileExtension)) {
 			entitiesDetected = true;
 
@@ -2887,7 +2888,6 @@ export class EditCodeService extends Disposable implements IEditCodeService {
 			}
 		}
 
-		// ✅ Strip top-level ``` fences (common LLM mistake)
 		cleanOriginalSnippet = stripMarkdownFence(cleanOriginalSnippet);
 		cleanUpdatedSnippet = stripMarkdownFence(cleanUpdatedSnippet);
 
@@ -2912,15 +2912,12 @@ export class EditCodeService extends Disposable implements IEditCodeService {
 		let debugCmd: { gnu: string; bsd: string } | null = null;
 
 		const recordFallbackLater = (reason: string) => {
-			// store now, but we’ll enrich with range once we know startLine/endLine
 			fallbackReason = reason;
 		};
 
-		
 		const origNorm = normalizeEol(cleanOriginalSnippet)
 		const updNorm = normalizeEol(cleanUpdatedSnippet)
 
-		
 		const collapseWsKeepNL = (s: string) => {
 			const out: string[] = [];
 			const map: number[] = [];
@@ -3009,8 +3006,6 @@ export class EditCodeService extends Disposable implements IEditCodeService {
 			const close = findMatchingCurlyForward(updated, open);
 			if (close === -1) return false;
 
-
-
 			const tail = updated.slice(close + 1).trim();
 			return tail === '' || tail === ';' || tail === ',';
 		};
@@ -3018,19 +3013,12 @@ export class EditCodeService extends Disposable implements IEditCodeService {
 		const tryExpandHeaderRange = (text: string, guessStart: number, guessEnd: number, searchWindow = 200) => {
 			let startOffset = guessStart;
 			let endOffset = guessEnd;
-
-
-
 			const origTrim = (origNorm ?? '').trimEnd();
 			const looksLikeHeaderOnly = /{\s*$/.test(origTrim) && !origTrim.includes('}');
-
 
 			const looksLikeExpansion =
 				(updNorm ?? '').length > (origNorm ?? '').length &&
 				startsWithWsAgnostic(updNorm ?? '', origNorm ?? '');
-
-
-
 
 			const allowBlockExpansion =
 				looksLikeHeaderOnly &&
@@ -3079,7 +3067,6 @@ export class EditCodeService extends Disposable implements IEditCodeService {
 			return { startOffset, endOffset };
 		};
 
-
 		const escapeRx = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 		const endsWithToken = (s: string, token: string) => new RegExp(`${escapeRx(token)}\\s*$`).test(s);
 		const nextNonWsIndex = (text: string, from: number) => {
@@ -3087,8 +3074,6 @@ export class EditCodeService extends Disposable implements IEditCodeService {
 			while (i < text.length && /\s/.test(text[i])) i++;
 			return i;
 		};
-
-
 
 		const swallowTrailingTokenLen = (full: string, endOff: number, updated: string, original: string) => {
 			const i = nextNonWsIndex(full, endOff);
@@ -3174,9 +3159,7 @@ export class EditCodeService extends Disposable implements IEditCodeService {
 						end = r.endOffset
 					}
 
-
 					const swallow = swallowTrailingTokenLen(textAcc, end, updNorm, origNorm)
-
 					textAcc = textAcc.slice(0, start) + updNorm + textAcc.slice(end + swallow)
 				}
 				updatedText = textAcc
@@ -3272,7 +3255,6 @@ export class EditCodeService extends Disposable implements IEditCodeService {
 					startReplaceOffset = r.startOffset
 					endReplaceOffset = r.endOffset
 				}
-
 
 				endReplaceOffset += swallowTrailingTokenLen(fullText, endReplaceOffset, updNorm, origNorm)
 
@@ -3572,7 +3554,6 @@ export class EditCodeService extends Disposable implements IEditCodeService {
 			this._refreshStylesAndDiffsInURI(uri)
 			return
 		}
-
 
 		this._writeURIText(uri, text, 'wholeFileRange', { shouldRealignDiffAreas: true })
 		try { await (this as any)._saveModelIfNeeded?.(uri, meta.encoding) } catch { }

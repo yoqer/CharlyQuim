@@ -8,7 +8,7 @@ import { ICodeEditor, IOverlayWidget, IOverlayWidgetPosition } from '../../../..
 import { EditorContributionInstantiation, registerEditorContribution } from '../../../../editor/browser/editorExtensions.js';
 import { ICursorSelectionChangedEvent } from '../../../../editor/common/cursorEvents.js';
 import { IEditorContribution } from '../../../../editor/common/editorCommon.js';
-import { Selection } from '../../../../editor/common/core/selection.js';
+import { Selection } from '../../../../editor/common/language/core/selection.js';
 import { RunOnceScheduler } from '../../../../base/common/async.js';
 import * as dom from '../../../../base/browser/dom.js';
 import { mountVoidSelectionHelper } from './react/out/void-editor-widgets-tsx/index.js';

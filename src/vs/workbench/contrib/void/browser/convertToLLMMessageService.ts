@@ -1,3 +1,8 @@
+/*--------------------------------------------------------------------------------------
+ *  Copyright 2025 Glass Devtools, Inc. All rights reserved.
+ *  Licensed under the Apache License, Version 2.0. See LICENSE.txt for more information.
+ *--------------------------------------------------------------------------------------*/
+
 import { Disposable } from '../../../../base/common/lifecycle.js';
 import { deepClone } from '../../../../base/common/objects.js';
 import { registerSingleton, InstantiationType } from '../../../../platform/instantiation/common/extensions.js';
@@ -36,7 +41,7 @@ import {
 } from '../../../../platform/void/common/voidSettingsTypes.js';
 import { IVoidModelService } from '../common/voidModelService.js';
 import { URI } from '../../../../base/common/uri.js';
-import { EndOfLinePreference } from '../../../../editor/common/model.js';
+import { EndOfLinePreference } from '../../../../editor/common/language/model.js';
 import { ILocalPtyService } from '../../../../platform/terminal/common/terminal.js'
 import { IDynamicProviderRegistryService } from '../../../../platform/void/common/providerReg.js';
 import { IDynamicModelService } from '../../../../platform/void/common/dynamicModelService.js';
@@ -121,6 +126,7 @@ const prepareOpenAIToolsMessages = (messages: SimpleLLMMessage[]): AnthropicOrOp
 			} else if (currMsg.role === 'assistant') {
 				newMessages.push({ role: 'assistant', content: currMsg.content });
 			} else {
+				// allow-any-unicode-next-line
 				// Fallback for unexpected roles – treat as simple user message
 				newMessages.push({ role: 'user', content: (currMsg as any).content });
 			}
@@ -792,7 +798,7 @@ class ConvertToLLMMessageService extends Disposable implements IConvertToLLMMess
 		let { contextWindow, supportsSystemMessage } = caps
 
 		// Fallback to provider API config only when tool format is truly missing
-		// Do NOT override an explicit or inferred 'disabled' value – that means
+		// Do NOT override an explicit or inferred 'disabled' value - that means
 		// "no native tools", and must be respected.
 		if (!specialToolFormat) {
 			try {
@@ -866,6 +872,7 @@ class ConvertToLLMMessageService extends Disposable implements IConvertToLLMMess
 			if (userSSMOverride2 !== undefined) supportsSystemMessage = userSSMOverride2;
 		}
 
+		// allow-any-unicode-next-line
 		// Fallback to provider API config only when tool format is truly missing.
 		// Never override explicit or inferred 'disabled', since that means
 		// "no native tools" and must be honored.

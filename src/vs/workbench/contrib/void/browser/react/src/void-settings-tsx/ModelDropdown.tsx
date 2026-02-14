@@ -1,3 +1,8 @@
+/*--------------------------------------------------------------------------------------
+ *  Copyright 2025 Glass Devtools, Inc. All rights reserved.
+ *  Licensed under the Apache License, Version 2.0. See LICENSE.txt for more information.
+ *--------------------------------------------------------------------------------------*/
+
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { FeatureName, isFeatureNameDisabled, modelSelectionsEqual, } from '../../../../../../../platform/void/common/voidSettingsTypes.js'
 import { useSettingsState, useAccessor } from '../util/services.js'

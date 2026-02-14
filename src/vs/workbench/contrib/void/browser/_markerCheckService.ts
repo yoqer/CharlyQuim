@@ -7,11 +7,11 @@ import { Disposable } from '../../../../base/common/lifecycle.js';
 import { InstantiationType, registerSingleton } from '../../../../platform/instantiation/common/extensions.js';
 import { createDecorator } from '../../../../platform/instantiation/common/instantiation.js';
 import { IMarkerService, MarkerSeverity } from '../../../../platform/markers/common/markers.js';
-import { ILanguageFeaturesService } from '../../../../editor/common/services/languageFeatures.js';
-import { ITextModelService } from '../../../../editor/common/services/resolverService.js';
-import { Range } from '../../../../editor/common/core/range.js';
+import { ILanguageFeaturesService } from '../../../../editor/common/language/services/languageFeatures.js';
+import { ITextModelService } from '../../../../editor/common/language/services/resolverService.js';
+import { Range } from '../../../../editor/common/language/core/range.js';
 import { CancellationToken } from '../../../../base/common/cancellation.js';
-import { CodeActionContext, CodeActionTriggerType } from '../../../../editor/common/languages.js';
+import { CodeActionContext, CodeActionTriggerType } from '../../../../editor/common/language/languages.js';
 import * as dom from '../../../../base/browser/dom.js';
 
 export interface IMarkerCheckService {

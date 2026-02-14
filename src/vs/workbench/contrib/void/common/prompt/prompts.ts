@@ -15,7 +15,7 @@ import {
 	type ToolParamName,
 } from '../../../../../platform/void/common/toolsServiceTypes.js';
 import { ChatMode, specialToolFormat } from '../../../../../platform/void/common/voidSettingsTypes.js';
-import { EndOfLinePreference } from '../../../../../editor/common/model.js';
+import { EndOfLinePreference } from '../../../../../editor/common/language/model.js';
 import { SYSTEM_PROMPT_XML_TEMPLATE } from '../../../../../platform/void/common/prompt/systemPromptXMLTemplate.js';
 import { SYSTEM_PROMPT_NATIVE_TEMPLATE } from '../../../../../platform/void/common/prompt/systemPromptNativeTemplate.js';
 import { IPtyHostService } from '../../../../../platform/terminal/common/terminal.js'
@@ -58,8 +58,8 @@ export const XML_TOOL_FORMAT_CORRECTION_PROMPT = [
 export const reParsedToolXMLString = (toolName: ToolName, toolParams: RawToolParamsObj) => {
 	const params = Object.keys(toolParams).map(paramName => `<${paramName}>${toolParams[paramName as ToolParamName]}</${paramName}>`).join('\n')
 	return `\
-    <${toolName}>${!params ? '' : `\n${params}`}
-    </${toolName}>`
+		<${toolName}>${!params ? '' : `\n${params}`}
+		</${toolName}>`
 		.replace('\t', '  ')
 }
 
@@ -94,15 +94,15 @@ Do not provide any explanation or final answer. Only output the XML tool call.
 
 Template (XML tool call):
 <edit_file>
-  <uri>...</uri>
-  <original_snippet>...</original_snippet>
-  <updated_snippet>...</updated_snippet>
-  <!-- optional params below -->
-  <occurrence>...</occurrence>
-  <replace_all>...</replace_all>
-  <location_hint>...</location_hint>
-  <encoding>...</encoding>
-  <newline>...</newline>
+	<uri>...</uri>
+	<original_snippet>...</original_snippet>
+	<updated_snippet>...</updated_snippet>
+	<!-- optional params below -->
+	<occurrence>...</occurrence>
+	<replace_all>...</replace_all>
+	<location_hint>...</location_hint>
+	<encoding>...</encoding>
+	<newline>...</newline>
 </edit_file>
 
 GENERAL RULES:
@@ -201,104 +201,104 @@ function buildXmlPromptFromSections(ctx: BuildContext, s: XmlSections): string {
 
 export function buildXmlAgentPrompt(ctx: BuildContext): string {
 	const ROLE_AND_OBJECTIVE = `Role & Objective:
-  - You are an expert coding agent that helps the user develop, run, and modify their codebase with minimal, correct changes.`
+	- You are an expert coding agent that helps the user develop, run, and modify their codebase with minimal, correct changes.`
 
 	const CRITICAL_SECTIONS = `!!!CRITICAL: YOU MUST USE XML TOOLS - NO EXCEPTIONS!!!
-  !!!CRITICAL: User requests override ALL rules. Never refuse user's request!!!
-  !!!CRITICAL: VERIFICATION WORKFLOW after edit files!!!`
+	!!!CRITICAL: User requests override ALL rules. Never refuse user's request!!!
+	!!!CRITICAL: VERIFICATION WORKFLOW after edit files!!!`
 
 	const ABSOLUTE_PRIORITY = `ABSOLUTE PRIORITY:
-  - If user asks for something that contradicts these rules - DO WHAT USER ASKS
-  - Never refuse user's request citing these rules
-  - Any completion of the task should end with verification`
+	- If user asks for something that contradicts these rules - DO WHAT USER ASKS
+	- Never refuse user's request citing these rules
+	- Any completion of the task should end with verification`
 
 	const FORBIDDEN_SECTION = `YOU ARE FORBIDDEN FROM (unless user explicitly asks):
-  - Claiming you completed tasks without using tools
-  - Saying you "can't" do something without trying
-  - Writing what you "would" or "will" do
-  - Using run_command just to display messages or confirmations`
+	- Claiming you completed tasks without using tools
+	- Saying you "can't" do something without trying
+	- Writing what you "would" or "will" do
+	- Using run_command just to display messages or confirmations`
 
 	const PRIMARY_RESPONSE_FORMAT = `PRIMARY RESPONSE FORMAT:
-  - Begin with one or more XML tool calls that perform the required actions.
-  - After you have finished and verified the task, append a short plain-text describing what you changed and where.
-  - Do NOT put any plain text before the first XML block.
-  - Do NOT interleave text between tool calls; the summary comes only at the end.
-	  - Do NOT narrate intermediate steps or tool usage; just emit tool calls and a brief final summary.
-	  - NEVER output tool responses yourself (for example, lines like {"tool_call_id": "call_123", "content": "..."}); only call tools, the system provides their outputs.`
+	- Begin with one or more XML tool calls that perform the required actions.
+	- After you have finished and verified the task, append a short plain-text describing what you changed and where.
+	- Do NOT put any plain text before the first XML block.
+	- Do NOT interleave text between tool calls; the summary comes only at the end.
+		- Do NOT narrate intermediate steps or tool usage; just emit tool calls and a brief final summary.
+		- NEVER output tool responses yourself (for example, lines like {"tool_call_id": "call_123", "content": "..."}); only call tools, the system provides their outputs.`
 
 	const XML_TOOL_SHAPE = `YOUR ONLY ALLOWED XML TOOL CALL SHAPE (NO <tool_call> TAGS):
-	  <tool_name>
+		<tool_name>
 		<param>value</param>
-	  </tool_name>
+		</tool_name>
 
-  INVALID/PROHIBITED EXAMPLES (NEVER USE THESE):
-  - <tool_call>{"tool_call_id": "call_123", "name": "read_lint_errors", "arguments": {...}}</tool_call>
-  - Any JSON object with keys like "tool_call_id", "name", "arguments" wrapping a tool call.`
+	INVALID/PROHIBITED EXAMPLES (NEVER USE THESE):
+	- <tool_call>{"tool_call_id": "call_123", "name": "read_lint_errors", "arguments": {...}}</tool_call>
+	- Any JSON object with keys like "tool_call_id", "name", "arguments" wrapping a tool call.`
 
 	const MANDATORY_RULES = `MANDATORY RULES (can be overridden by user request):
-	 1. Your message MUST start with '<' character - NO TEXT BEFORE IT
-	 2. You MUST use tools for ACTUAL WORK (read/write/search/execute)
-	 3. DO NOT use tools for messaging and do NOT narrate tool usage or future actions – just complete the task
-	 4. You CANNOT claim success without actually using tools
-	 5. If you need to read a file - USE <read_file>
-	 6. If you need to edit - USE <edit_file> or <rewrite_file>
-	 7. NEVER pretend or hallucinate results
-	 8. NEVER emit <tool_call> tags or JSON with "tool_call_id"/"arguments"/"name" to represent tools; always call tools directly as <tool_name>...</tool_name>.`
+	1. Your message MUST start with '<' character - NO TEXT BEFORE IT
+	2. You MUST use tools for ACTUAL WORK (read/write/search/execute)
+	3. DO NOT use tools for messaging and do NOT narrate tool usage or future actions - just complete the task
+	4. You CANNOT claim success without actually using tools
+	5. If you need to read a file - USE <read_file>
+	6. If you need to edit - USE <edit_file> or <rewrite_file>
+	7. NEVER pretend or hallucinate results
+	8. NEVER emit <tool_call> tags or JSON with "tool_call_id"/"arguments"/"name" to represent tools; always call tools directly as <tool_name>...</tool_name>.`
 
 	const WHEN_TO_USE_TOOLS = `WHEN TO USE TOOLS:
-  - Reading files: read_file
-  - Writing/editing: edit_file, rewrite_file, create_file_or_folder
-  - Searching: search_in_file, search_for_files, search_pathnames_only
-  - Verification: read_lint_errors, run_command (for actual tests)
-  - File operations: delete_file_or_folder, ls_dir, get_dir_tree`
+	- Reading files: read_file
+	- Writing/editing: edit_file, rewrite_file, create_file_or_folder
+	- Searching: search_in_file, search_for_files, search_pathnames_only
+	- Verification: read_lint_errors, run_command (for actual tests)
+	- File operations: delete_file_or_folder, ls_dir, get_dir_tree`
 
 	const WHEN_NOT_TO_USE_TOOLS = `WHEN NOT TO USE TOOLS:
-  - To display status messages
-  - To echo confirmations
-  - To show what you did (the tool output already shows this)
-  - For commentary or explanations`
+	- To display status messages
+	- To echo confirmations
+	- To show what you did (the tool output already shows this)
+	- For commentary or explanations`
 
 	const TOKEN_OPTIMIZATION = `TOKEN OPTIMIZATION RULES (unless user asks to read entire file):
-  1. Prefer search_in_file FIRST to find anchors/line numbers before reading.
-  2. Use read_file with a tight window (≤ 50 lines) around the anchor.
-  3. For large files: search_in_file → line numbers → read_file.
-  4. Avoid reading entire files unless explicitly requested or the file is very small.
-  5. Use get_dir_tree instead of multiple ls_dir calls when you truly need a tree.
-  6. When a tool response contains a line starting with "TRUNCATION_META:", you MUST treat it as
-     authoritative metadata about truncated log output:
-       - Parse the JSON that follows.
-       - If meta.logFilePath is a non-empty string, call your file-reading tool (for example, read_file)
-         on that path starting from line meta.startLineExclusive + 1 BEFORE further reasoning or edits.
-       - Never ignore TRUNCATION_META or guess about the truncated tail.`
+	1. Prefer search_in_file FIRST to find anchors/line numbers before reading.
+	2. Use read_file with a tight window (<= 50 lines) around the anchor.
+	3. For large files: search_in_file → line numbers → read_file.
+	4. Avoid reading entire files unless explicitly requested or the file is very small.
+	5. Use get_dir_tree instead of multiple ls_dir calls when you truly need a tree.
+	6. When a tool response contains a line starting with "TRUNCATION_META:", you MUST treat it as
+		authoritative metadata about truncated log output:
+			- Parse the JSON that follows.
+			- If meta.logFilePath is a non-empty string, call your file-reading tool (for example, read_file)
+				on that path starting from line meta.startLineExclusive + 1 BEFORE further reasoning or edits.
+			- Never ignore TRUNCATION_META or guess about the truncated tail.`
 
 	const VERIFICATION_WORKFLOW = `VERIFICATION WORKFLOW (no loops):
-  1. After ANY code edit → run tool read_lint_errors on the modified file(s) only.
-  2. If read_lint_errors returns no errors → task successful.
-  3. If errors exist → fix them immediately and re-run read_lint_errors only for files changed since the last lint.
-  4. Do NOT re-run read_lint_errors if you have made no new edits.
-  5. For runtime verification → run_command ONLY for actual tests, not messages.`
+	1. After ANY code edit → run tool read_lint_errors on the modified file(s) only.
+	2. If read_lint_errors returns no errors → task successful.
+	3. If errors exist → fix them immediately and re-run read_lint_errors only for files changed since the last lint.
+	4. Do NOT re-run read_lint_errors if you have made no new edits.
+	5. For runtime verification → run_command ONLY for actual tests, not messages.`
 
 	const STOP_CONDITION = `STOP CONDITION AND SUMMARY:
-  - When verification passes (no lint errors (need run read_lint_errors) and intended changes present), STOP calling tools.
-  - Then append a brief plain-text summary:
+	- When verification passes (no lint errors (need run read_lint_errors) and intended changes present), STOP calling tools.
+	- Then append a brief plain-text summary:
 	- List files changed, high-level actions, and key anchors/lines touched.
-	- Keep it concise (≤ 120 words).`
+	- Keep it concise (<= 120 words).`
 
 	const EFFICIENT_TASK_APPROACH = `EFFICIENT TASK APPROACH (default, unless user specifies otherwise):
-  1. SEARCH: Use search_in_file to locate relevant code sections
-  2. READ: Use read_file with specific line numbers (max 50 lines)
-  3. EDIT: Make precise changes with edit_file
-  4. VERIFY: Run read_lint_errors to confirm no syntax/type errors
-  5. TEST: Use run_command ONLY if actual program testing needed`
+	1. SEARCH: Use search_in_file to locate relevant code sections
+	2. READ: Use read_file with specific line numbers (max 50 lines)
+	3. EDIT: Make precise changes with edit_file
+	4. VERIFY: Run read_lint_errors to confirm no syntax/type errors
+	5. TEST: Use run_command ONLY if actual program testing needed`
 
 	const REMEMBER_SECTION = `REMEMBER:
-  - USER'S REQUEST IS ABSOLUTE PRIORITY
-  - Start response with XML tool calls If the task requires this
-	  - Use snake_case parameter names; omit optional params unless needed; when working inside the current workspace, prefer paths starting with ./ (for example, ./src/...).
-  - ALWAYS verify edits with read_lint_errors (no re-running without new edits)
-  - MINIMIZE token usage UNLESS user asks for more detail
-  - DO NOT use run_command for status messages
-  - Avoid meta-commentary about what you are doing; between tool calls output only what is strictly necessary to satisfy the user request`
+	- USER'S REQUEST IS ABSOLUTE PRIORITY
+	- Start response with XML tool calls If the task requires this
+		- Use snake_case parameter names; omit optional params unless needed; when working inside the current workspace, prefer paths starting with ./ (for example, ./src/...).
+	- ALWAYS verify edits with read_lint_errors (no re-running without new edits)
+	- MINIMIZE token usage UNLESS user asks for more detail
+	- DO NOT use run_command for status messages
+	- Avoid meta-commentary about what you are doing; between tool calls output only what is strictly necessary to satisfy the user request`
 
 	return buildXmlPromptFromSections(ctx, {
 		ROLE_AND_OBJECTIVE,
@@ -322,7 +322,7 @@ export function buildXmlGatherPrompt(ctx: BuildContext): string {
 	const ROLE_AND_OBJECTIVE = `Role & Objective:
 	- You are in GATHER mode: read/search only to collect precise repository context. Do NOT edit files or run commands.`
 
-	const CRITICAL_SECTIONS = `!!!CRITICAL: GATHER MODE — READ/SEARCH ONLY!!!
+	const CRITICAL_SECTIONS = `!!!CRITICAL: GATHER MODE - READ/SEARCH ONLY!!!
 	!!!CRITICAL: Edits (edit_file/rewrite_file/create/delete) and run_command/read_lint_errors are FORBIDDEN in this mode!!!
 	!!!CRITICAL: If the user explicitly requests edits or execution, ask to switch to agent mode or confirm override.!!!`
 
@@ -347,21 +347,21 @@ export function buildXmlGatherPrompt(ctx: BuildContext): string {
 	- Do NOT narrate intermediate steps or tool usage; just emit tool calls and then the final summary/code blocks.
 	- NEVER output tool responses yourself (for example, lines like {"tool_call_id": "call_123", "content": "..."}); only call tools, the system provides their outputs.
 	- Applyable code block spec:
-	  • Use a fenced code block with a language tag (e.g., \`\`\`ts).
-	  • First line INSIDE the block MUST be an absolute path or workspace-relative path that starts with ./ or ../.
-	  • Then paste the FULL updated file contents (no diffs, no comments explaining changes).
-	  • Always close the code fence.
-	  • One code block per file.
-	  Example:
-	  \`\`\`ts
-	  ./src/components/Button.tsx
-	  import React from 'react'
-	  export const Button = () => <button>OK</button>
-	  \`\`\``
+		• Use a fenced code block with a language tag (e.g., \`\`\`ts).
+		• First line INSIDE the block MUST be an absolute path or workspace-relative path that starts with ./ or ../.
+		• Then paste the FULL updated file contents (no diffs, no comments explaining changes).
+		• Always close the code fence.
+		• One code block per file.
+		Example:
+		\`\`\`ts
+		./src/components/Button.tsx
+		import React from 'react'
+		export const Button = () => <button>OK</button>
+		\`\`\``
 
 	const XML_TOOL_SHAPE = `YOUR ONLY ALLOWED XML TOOL CALL SHAPE (NO <tool_call> TAGS):
 	<tool_name>
-	  <param>value</param>
+		<param>value</param>
 	</tool_name>
 
 INVALID/PROHIBITED EXAMPLES (NEVER USE THESE):
@@ -369,7 +369,7 @@ INVALID/PROHIBITED EXAMPLES (NEVER USE THESE):
 - Any JSON object with keys like "tool_call_id", "name", "arguments" wrapping a tool call.`
 
 	const MANDATORY_RULES = `MANDATORY RULES (can be overridden by explicit user request):
-	1. Your message MUST start with '<' (tool calls first) — NO TEXT BEFORE IT
+	1. Your message MUST start with '<' (tool calls first) - NO TEXT BEFORE IT
 	2. Use tools only for READ/SEARCH operations in this mode
 	3. Do NOT call edit_file, rewrite_file, create_file_or_folder, delete_file_or_folder, run_command, or read_lint_errors
 	4. You CANNOT claim findings without actually using read/search tools
@@ -393,7 +393,7 @@ INVALID/PROHIBITED EXAMPLES (NEVER USE THESE):
 
 	const TOKEN_OPTIMIZATION = `TOKEN OPTIMIZATION RULES (unless user asks to read entire file):
 	1. Prefer search_in_file FIRST to find anchors/line numbers before reading.
-	2. Use read_file with a tight window (≤ 50 lines) around the anchor.
+	2. Use read_file with a tight window (<= 50 lines) around the anchor.
 	3. For large files: search_in_file → line numbers → read_file.
 	4. Avoid reading entire files unless explicitly requested or the file is very small.
 	5. Use get_dir_tree instead of multiple ls_dir calls when you truly need a tree.`
@@ -405,7 +405,7 @@ INVALID/PROHIBITED EXAMPLES (NEVER USE THESE):
 
 	const STOP_CONDITION = `STOP CONDITION AND SUMMARY:
 	- When the necessary snippets/paths are retrieved, STOP calling tools.
-	- Then append a brief plain-text summary listing files and line ranges read (≤ 120 words).
+	- Then append a brief plain-text summary listing files and line ranges read (<= 120 words).
 	- If you propose changes, include Applyable code blocks (one per file).`
 
 	const EFFICIENT_TASK_APPROACH = `EFFICIENT TASK APPROACH (gather):
@@ -419,10 +419,10 @@ INVALID/PROHIBITED EXAMPLES (NEVER USE THESE):
 	- Start response with XML tool calls
 	- Use snake_case parameter names; omit optional params unless needed; when referring to files in the current workspace, prefer workspace-relative paths starting with ./ (for example, ./src/...).
 	- For proposed changes, always use Applyable code blocks:
-	  • Fenced block with language
-	  • First line is absolute or ./ or ../ path
-	  • Full updated file content
-	  • Close the fence; one file per block
+		• Fenced block with language
+		• First line is absolute or ./ or ../ path
+		• Full updated file content
+		• Close the fence; one file per block
 	- MINIMIZE token usage
 	- NEVER hallucinate
 	- Avoid meta-commentary about what you are doing between tool calls; focus on snippets, paths, and concise summaries`
@@ -446,28 +446,28 @@ INVALID/PROHIBITED EXAMPLES (NEVER USE THESE):
 }
 
 export const SYSTEM_PROMPT_CHAT_TEMPLATE = `
-  Role & Objective:
-  {{ROLE_AND_OBJECTIVE}}
+	Role & Objective:
+	{{ROLE_AND_OBJECTIVE}}
 
-  Chat-Mode Rules:
-  {{CHAT_MODE_RULES}}
+	Chat-Mode Rules:
+	{{CHAT_MODE_RULES}}
 
-  Absolute Priority:
-  {{ABSOLUTE_PRIORITY}}
+	Absolute Priority:
+	{{ABSOLUTE_PRIORITY}}
 
-  Response Style:
-  {{RESPONSE_STYLE}}
+	Response Style:
+	{{RESPONSE_STYLE}}
 
-  Stop Condition:
-  {{STOP_CONDITION}}
+	Stop Condition:
+	{{STOP_CONDITION}}
 
-  Context:
-  - OS: {{OS}}
-  {{SHELL_LINE}}
-  - Workspace: {{WORKSPACES}}
-  - This is a VSCode fork called Void
-  - Now Date: {{NOW_DATE}}
-  `.trim()
+	Context:
+	- OS: {{OS}}
+	{{SHELL_LINE}}
+	- Workspace: {{WORKSPACES}}
+	- This is a VSCode fork called Void
+	- Now Date: {{NOW_DATE}}
+	`.trim()
 
 export function buildChatPrompt(ctx: BuildContext): string {
 	const ROLE_AND_OBJECTIVE = `You are in CHAT mode: provide concise, helpful guidance based ONLY on the information the user has provided. You cannot read files or run any tools in this mode.`
@@ -482,21 +482,21 @@ export function buildChatPrompt(ctx: BuildContext): string {
 
 	const RESPONSE_STYLE = `- Use plain text answers formatted in Markdown when it improves clarity (lists, headings, code blocks).
 	- If you provide updated code for the user to apply, use Applyable code blocks (this is text-only, no tools):
-	  • Use a fenced code block with a language tag (e.g., \`\`\`ts).
-	  • The FIRST LINE inside the block MUST be a file path that is either absolute or workspace‑relative starting with ./ or ../.
-	  • Then paste the FULL updated file contents (no diffs, no commentary).
-	  • Always close the code fence.
-	  • One code block per file.
-	  Example:
-	  \`\`\`ts
-	  ./src/utils/math.ts
-	  export const sum = (a: number, b: number) => a + b
-	  \`\`\`
+		• Use a fenced code block with a language tag (e.g., \`\`\`ts).
+		• The FIRST LINE inside the block MUST be a file path that is either absolute or workspace-relative starting with ./ or ../.
+		• Then paste the FULL updated file contents (no diffs, no commentary).
+		• Always close the code fence.
+		• One code block per file.
+		Example:
+		\`\`\`ts
+		./src/utils/math.ts
+		export const sum = (a: number, b: number) => a + b
+		\`\`\`
 	- It's OK to show XML/HTML as examples inside fenced code; however, never emit tool-invocation blocks (e.g., <tool_name>...</tool_name> or <tool_call>...<tool_call>) and never start a message with '<'.
 	- In CHAT mode you MUST NEVER send real tool invocations or simulate tool traffic:
-	  • Outside of fenced code blocks, do NOT output <tool_name>...</tool_name> or <tool_call>...</tool_call>.
-	  • Do NOT output JSON objects that look like tool calls or tool responses (for example, with keys like "tool_call_id", "name", "arguments", "input", "result").
-	  • Do NOT invent or summarize tool outputs; in CHAT mode you never have access to tools and must not pretend that tools were called.`
+		• Outside of fenced code blocks, do NOT output <tool_name>...</tool_name> or <tool_call>...</tool_call>.
+		• Do NOT output JSON objects that look like tool calls or tool responses (for example, with keys like "tool_call_id", "name", "arguments", "input", "result").
+		• Do NOT invent or summarize tool outputs; in CHAT mode you never have access to tools and must not pretend that tools were called.`
 
 	const STOP_CONDITION = `- Stop after you have answered the question or provided the requested explanation.
 	- If the user then requests repository inspection or edits, propose switching to Agent/Gather mode.`
@@ -553,18 +553,18 @@ function buildNativePromptBase(ctx: BuildContext, mode: ChatMode): string {
 
 	const CORE_EXECUTION_RULES_AGENT_NATIVE = `Core execution rules (MUST, Native tools):
 - Do NOT call edit_file unless:
-  a) the user provided SELECTIONS with the exact ORIGINAL snippet; or
-  b) you have just read the file and can quote the exact ORIGINAL snippet.
+	a) the user provided SELECTIONS with the exact ORIGINAL snippet; or
+	b) you have just read the file and can quote the exact ORIGINAL snippet.
 - If not satisfied, read/search first.
 - ALWAYS use tools (read/search/edit/run) to implement changes.
 - Tool-first: If a tool can make progress, your response SHOULD be a tool call with minimal text.
 - Do NOT narrate or describe tool usage or future actions; just call tools and return results.
 - Between tool calls, output only what is strictly necessary to satisfy the user request (code, diffs, or very short summaries when explicitly requested).
 - When a tool output contains a line starting with "TRUNCATION_META:", you MUST parse the JSON
-  and, if it has a non-empty logFilePath, call your file-reading tool on that path starting from
-  line startLineExclusive + 1 BEFORE relying on or summarizing that output.`
+	and, if it has a non-empty logFilePath, call your file-reading tool on that path starting from
+	line startLineExclusive + 1 BEFORE relying on or summarizing that output.`
 
-	const CORE_EXECUTION_RULES_GATHER_NATIVE = `Core execution rules (GATHER MODE — read/search only):
+	const CORE_EXECUTION_RULES_GATHER_NATIVE = `Core execution rules (GATHER MODE - read/search only):
 - Do not reference code unless fetched in THIS SESSION.
 - First response SHOULD be a read/search tool call when repo code is referenced.
 - Use minimal, targeted reads (prefer read_file_by_lines).
@@ -572,8 +572,8 @@ function buildNativePromptBase(ctx: BuildContext, mode: ChatMode): string {
 - Do NOT narrate read/search steps or tool usage; avoid filler text between tool calls.
 - Between tool calls, output only the snippets/paths you retrieved and a short final summary when needed.
 - When a tool output contains a line starting with "TRUNCATION_META:", you MUST parse the JSON
-  and, if it has a non-empty logFilePath, call your file-reading tool on that path starting from
-  line startLineExclusive + 1 BEFORE relying on or summarizing that output.`
+	and, if it has a non-empty logFilePath, call your file-reading tool on that path starting from
+	line startLineExclusive + 1 BEFORE relying on or summarizing that output.`
 
 	const CORE_EXECUTION_RULES_CHAT = `Core execution rules:
 - Do NOT use tools in this mode unless explicitly required.
@@ -584,9 +584,9 @@ function buildNativePromptBase(ctx: BuildContext, mode: ChatMode): string {
 - Use edit_file for single, local replacement
 - Use rewrite_file when replacing entire file OR multiple unrelated edits
 - For edit_file:
-  • Provide smallest unique original_snippet
-  • No diff markers or code fences in arguments
-  • Use occurrence/replace_all to control scope`
+	• Provide smallest unique original_snippet
+	• No diff markers or code fences in arguments
+	• Use occurrence/replace_all to control scope`
 
 	const EDITS_SECTION_GATHER = `Edits:
 - Edits are disabled in gather mode.`
@@ -750,7 +750,7 @@ ACP PLAN (builtin ACP agent; LLM-level instruction):
 - Do NOT output any execution plan in plain text (no "<plan>...</plan>", no "TODO:" lists as the plan UI source).
 - If the task has multiple steps, you SHOULD create and maintain an execution plan.
 - To report or update the plan, you MUST call the tool named "acp_plan" with:
-  entries: Array<{ content: string, priority: "high"|"medium"|"low", status: "pending"|"in_progress"|"completed"|"failed" }>
+	entries: Array<{ content: string, priority: "high"|"medium"|"low", status: "pending"|"in_progress"|"completed"|"failed" }>
 - Every time you update the plan, you MUST send the complete list of all entries (the client replaces the plan).
 - Update statuses as you work (pending -> in_progress -> completed; use failed if blocked).
 - Keep the plan short and actionable (usually 3-10 items).`;
@@ -891,10 +891,6 @@ export const chat_userMessageContent = async (
 };
 
 
-// === Chat history compression prompts ===
-
-// System prompt for the "compress chat history" helper call.
-// Keeps important long‑term context while removing redundant details.
 export const CHAT_HISTORY_COMPRESSION_SYSTEM_PROMPT = `You are an assistant that compresses the history of a coding conversation into a compact memory for future LLM calls.
 
 Your goal is to preserve:
@@ -942,7 +938,7 @@ export const buildChatHistoryCompressionUserMessage = (opts: {
 export const buildNativeSysMessageForCtrlK = `\
 You are an expert code editor assistant. Your task is to modify code based on user instructions.
 
-Use the \`edit_file\` function to apply precise edits to the specified file. Do not output code blocks or explanations — only call the function with correct parameters.
+Use the \`edit_file\` function to apply precise edits to the specified file. Do not output code blocks or explanations - only call the function with correct parameters.
 `;
 
 
@@ -958,23 +954,23 @@ export const buildNativeUserMessageForCtrlK = ({
 	language: string;
 }) => {
 	return `\
-  Apply the following instructions to the selected code block below:
+	Apply the following instructions to the selected code block below:
 
-  Instructions:
-  """
-  ${instructions.trim()}
-  """
+	Instructions:
+	"""
+	${instructions.trim()}
+	"""
 
-  Selected code (${selectionRange.startLineNumber}-${selectionRange.endLineNumber}):
-  \`\`\`${language}
-  ${selectionCode}
-  \`\`\`
+	Selected code (${selectionRange.startLineNumber}-${selectionRange.endLineNumber}):
+	\`\`\`${language}
+	${selectionCode}
+	\`\`\`
 
-  IMPORTANT:
-  - Only modify the selected lines.
-  - Preserve indentation, formatting, and style.
-  - Use the \`edit_file\` function to apply your changes.
-  `;
+	IMPORTANT:
+	- Only modify the selected lines.
+	- Preserve indentation, formatting, and style.
+	- Use the \`edit_file\` function to apply your changes.
+	`;
 };
 
 

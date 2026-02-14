@@ -284,6 +284,10 @@ export class DynamicProviderRegistryService implements IDynamicProviderRegistryS
 		return finalTokens.join(' ');
 	}
 
+	private makeShortName(id: string): string {
+		return this.toShortName(id);
+	}
+
 	private splitProvider(idOrShort: string): { provider?: string; short: string } {
 		const i = idOrShort.indexOf('/');
 		if (i === -1) return { short: idOrShort };
@@ -507,7 +511,7 @@ export class DynamicProviderRegistryService implements IDynamicProviderRegistryS
 
 			const inferredCaps = await this.inferCapabilitiesForRemoteModels(remoteIds);
 
-			
+
 			const { models, caps } = this.sanitizeModelsAndCaps(remoteIds, inferredCaps, {
 				keepFullIds: true,
 				dropFree: false
@@ -641,8 +645,8 @@ export class DynamicProviderRegistryService implements IDynamicProviderRegistryS
 		modelsCapabilities?: Record<string, Partial<VoidStaticModelInfo>>
 	): Promise<void> {
 
-		
-		
+
+
 		const keepFullIds = true;
 
 		const norm = this.sanitizeModelsAndCaps(models, modelsCapabilities, {
@@ -655,23 +659,23 @@ export class DynamicProviderRegistryService implements IDynamicProviderRegistryS
 
 		const nextCaps: Record<string, Partial<VoidStaticModelInfo>> = {};
 
-		
+
 		if (norm.caps) {
 			for (const [k, v] of Object.entries(norm.caps)) {
 				nextCaps[k] = v;
 			}
 		}
 
-		
+
 		for (const m of norm.models) {
 			if (!(m in nextCaps) && (m in prevCaps)) {
 				nextCaps[m] = prevCaps[m];
 			}
 		}
 
-		
-		
-		
+
+
+
 		try {
 			await this.dynamicModelService.initialize();
 
@@ -743,7 +747,7 @@ export class DynamicProviderRegistryService implements IDynamicProviderRegistryS
 		const usedSlug = cpPreferred ? preferred : (cpByModel ? slugFromModel : (cpOpenRouter ? 'openrouter' : slugFromModel));
 		this.logService.debug(`[DEBUG getRequestConfigForModel] slugFromModel="${slugFromModel}", usedSlug="${usedSlug}", hasCp=${!!cp}`);
 
-		this.logService.debug(`[DEBUG getRequestConfigForModel] base:`, base);
+		this.logService.debug(`[DEBUG getRequestConfigForModel] base:`, JSON.stringify(base, null, 2));
 		this.logService.debug(`[DEBUG getRequestConfigForModel] cp(usedSlug="${usedSlug}"):`, cp);
 
 		const endpoint = (cp?.endpoint && cp.endpoint.trim()) || base.endpoint;
@@ -764,7 +768,8 @@ export class DynamicProviderRegistryService implements IDynamicProviderRegistryS
 			}
 		}
 
-		// Pull per‑model capability overrides for this provider/model so that
+		// allow-any-unicode-next-line
+		// Pull per­-model capability overrides for this provider/model so that
 		// semantic flags like supportsSystemMessage and specialToolFormat are
 		// taken from the same source as ConvertToLLMMessageService / ACP, and
 		// are NOT silently overwritten by WELL_KNOWN_PROVIDER_DEFAULTS.

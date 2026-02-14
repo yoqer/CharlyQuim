@@ -12,9 +12,13 @@ import { IWorkspaceContextService } from '../../../platform/workspace/common/wor
 import { ShallowDirectoryItem, ToolCallParams, ToolResultType } from './toolsServiceTypes.js';
 import { MAX_CHILDREN_URIs_PAGE, MAX_DIRSTR_CHARS_TOTAL_BEGINNING, MAX_DIRSTR_CHARS_TOTAL_TOOL } from './prompt/constants.js';
 
+
 const MAX_FILES_TOTAL = 1_000;
+
+
 const START_MAX_DEPTH = Infinity;
 const START_MAX_ITEMS_PER_DIR = Infinity;
+
 const DEFAULT_MAX_DEPTH = 3;
 const DEFAULT_MAX_ITEMS_PER_DIR = 3;
 
@@ -28,6 +32,9 @@ export interface IDirectoryStrService {
 
 }
 export const IDirectoryStrService = createDecorator<IDirectoryStrService>('voidDirectoryStrService');
+
+
+
 
 // Check if it's a known filtered type like .git
 const shouldExcludeDirectory = (name: string) => {
@@ -62,6 +69,8 @@ const shouldExcludeDirectory = (name: string) => {
 
 	return false;
 }
+
+// ---------- ONE LAYER DEEP ----------
 
 export const computeDirectoryTree1Deep = async (
 	fileService: IFileService,
@@ -113,16 +122,22 @@ export const stringifyDirectoryTree1Deep = (params: ToolCallParams['ls_dir'], re
 	for (let i = 0; i < entries.length; i++) {
 		const entry = entries[i];
 		const isLast = i === entries.length - 1 && !result.hasNextPage;
+		// allow-any-unicode-next-line
 		const prefix = isLast ? '└── ' : '├── ';
 
 		output += `${prefix}${entry.name}${entry.isDirectory ? '/' : ''}${entry.isSymbolicLink ? ' (symbolic link)' : ''}\n`;
 	}
 
 	if (result.hasNextPage) {
+		// allow-any-unicode-next-line
 		output += `└── (${result.itemsRemaining} results remaining...)\n`;
 	}
+
 	return output;
 };
+
+
+// ---------- IN GENERAL ----------
 
 const resolveChildren = async (children: undefined | IFileStat[], fileService: IFileService): Promise<IFileStat[]> => {
 	const res = await fileService.resolveAll(children ?? [])
@@ -170,7 +185,6 @@ const computeAndStringifyDirectoryTree = async (
 
 	let content = nodeLine;
 	let wasCutOff = false;
-	void wasCutOff;
 	let remainingChars = MAX_CHARS - nodeLine.length;
 
 	// Check if it's a directory we should skip
@@ -241,7 +255,9 @@ const renderChildrenCombined = async (
 		const isLast = (i === itemsToProcess.length - 1) && !hasMoreItems;
 
 		// Create the tree branch symbols
+		// allow-any-unicode-next-line
 		const branchSymbol = isLast ? '└── ' : '├── ';
+		// allow-any-unicode-next-line
 		const childLine = `${parentPrefix}${branchSymbol}${child.name}${child.isDirectory ? '/' : ''}${child.isSymbolicLink ? ' (symbolic link)' : ''}\n`;
 
 		// Check if adding this line would exceed the limit
@@ -254,6 +270,7 @@ const renderChildrenCombined = async (
 		remainingChars -= childLine.length;
 		fileCount.count++;
 
+		// allow-any-unicode-next-line
 		const nextLevelPrefix = parentPrefix + (isLast ? '    ' : '│   ');
 
 		// Skip processing children for git ignored directories
@@ -292,6 +309,7 @@ const renderChildrenCombined = async (
 	// Add a message if we truncated the items due to maxItemsPerDir
 	if (hasMoreItems) {
 		const remainingCount = children.length - itemsToProcess.length;
+		// allow-any-unicode-next-line
 		const truncatedLine = `${parentPrefix}└── (${remainingCount} more items not shown...)\n`;
 
 		if (truncatedLine.length <= remainingChars) {
@@ -303,6 +321,9 @@ const renderChildrenCombined = async (
 
 	return { childrenContent, childrenCutOff };
 };
+
+
+// ------------------------- FOLDERS -------------------------
 
 export async function getAllUrisInDirectory(
 	directoryUri: URI,
@@ -361,6 +382,11 @@ export async function getAllUrisInDirectory(
 	return result;
 }
 
+
+
+// --------------------------------------------------
+
+
 class DirectoryStrService extends Disposable implements IDirectoryStrService {
 	_serviceBrand: undefined;
 
@@ -391,7 +417,7 @@ class DirectoryStrService extends Disposable implements IDirectoryStrService {
 		);
 
 		// If cut off, try again with DEFAULT_MAX_DEPTH and DEFAULT_MAX_ITEMS_PER_DIR
-		let content;
+		let content, wasCutOff;
 		if (initialCutOff) {
 			const result = await computeAndStringifyDirectoryTree(
 				eRoot,
@@ -401,12 +427,15 @@ class DirectoryStrService extends Disposable implements IDirectoryStrService {
 				{ maxDepth: DEFAULT_MAX_DEPTH, currentDepth: 0, maxItemsPerDir: DEFAULT_MAX_ITEMS_PER_DIR }
 			);
 			content = result.content;
+			wasCutOff = result.wasCutOff;
 		} else {
 			content = initialContent;
+			wasCutOff = initialCutOff;
 		}
 
 		let c = content // return full content (truncation happens in chatThreadService)
 		c = `Directory of ${uri.fsPath}:\n${content}`
+		// if (wasCutOff) c = `${c}\n...Result was truncated...`
 
 		return c
 	}

@@ -6,8 +6,8 @@
 import { CancellationToken } from '../../../../base/common/cancellation.js';
 import { URI } from '../../../../base/common/uri.js';
 import { shorten } from '../../../../base/common/labels.js';
-import { Position } from '../../../../editor/common/core/position.js';
-import { ILanguageFeaturesService } from '../../../../editor/common/services/languageFeatures.js';
+import { Position } from '../../../../editor/common/language/core/position.js';
+import { ILanguageFeaturesService } from '../../../../editor/common/language/services/languageFeatures.js';
 import { IToolsService } from '../common/toolsService.js';
 import { IVoidModelService } from '../common/voidModelService.js';
 import { CodespanLocationLink, ChatMessage, } from '../../../../platform/void/common/chatThreadServiceTypes.js';

@@ -4,16 +4,16 @@
  *--------------------------------------------------------------------------------------*/
 
 import { Disposable } from '../../../../base/common/lifecycle.js';
-import { ILanguageFeaturesService } from '../../../../editor/common/services/languageFeatures.js';
+import { ILanguageFeaturesService } from '../../../../editor/common/language/services/languageFeatures.js';
 import { createDecorator } from '../../../../platform/instantiation/common/instantiation.js';
-import { EndOfLinePreference, ITextModel } from '../../../../editor/common/model.js';
-import { Position } from '../../../../editor/common/core/position.js';
-import { InlineCompletion, } from '../../../../editor/common/languages.js';
-import { Range } from '../../../../editor/common/core/range.js';
+import { EndOfLinePreference, ITextModel } from '../../../../editor/common/language/model.js';
+import { Position } from '../../../../editor/common/language/core/position.js';
+import { InlineCompletion, } from '../../../../editor/common/language/languages.js';
+import { Range } from '../../../../editor/common/language/core/range.js';
 import { IEditorService } from '../../../services/editor/common/editorService.js';
 import { isCodeEditor } from '../../../../editor/browser/editorBrowser.js';
 import { EditorResourceAccessor } from '../../../common/editor.js';
-import { IModelService } from '../../../../editor/common/services/model.js';
+import { IModelService } from '../../../../editor/common/language/services/model.js';
 import { extractCodeFromRegular } from '../../../../platform/void/common/helpers/extractCodeFromResult.js';
 import { registerWorkbenchContribution2, WorkbenchPhase } from '../../../common/contributions.js';
 import { ILLMMessageService } from '../common/sendLLMMessageService.js';

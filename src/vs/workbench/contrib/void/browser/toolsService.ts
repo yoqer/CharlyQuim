@@ -1,3 +1,8 @@
+/*--------------------------------------------------------------------------------------
+ *  Copyright 2025 Glass Devtools, Inc. All rights reserved.
+ *  Licensed under the Apache License, Version 2.0. See LICENSE.txt for more information.
+ *--------------------------------------------------------------------------------------*/
+
 import { CancellationToken } from '../../../../base/common/cancellation.js'
 import { URI } from '../../../../base/common/uri.js'
 import { IFileService } from '../../../../platform/files/common/files.js'
@@ -10,7 +15,7 @@ import { IEditCodeService } from './editCodeServiceInterface.js'
 import { ITerminalToolService } from './terminalToolService.js'
 import { LintErrorItem, ToolCallParams, ToolResultType } from '../../../../platform/void/common/toolsServiceTypes.js'
 import { IVoidModelService } from '../common/voidModelService.js'
-import { EndOfLinePreference } from '../../../../editor/common/model.js'
+import { EndOfLinePreference } from '../../../../editor/common/language/model.js'
 import { IVoidCommandBarService } from './voidCommandBarService.js'
 import { computeDirectoryTree1Deep, IDirectoryStrService, stringifyDirectoryTree1Deep } from '../../../../platform/void/common/directoryStrService.js'
 import { IMarkerService, MarkerSeverity } from '../../../../platform/markers/common/markers.js'
@@ -396,9 +401,8 @@ export class ToolsService implements IToolsService {
 
 		} as any
 
-
 		this.callTool = {
-			read_file: async ({ uri, startLine, endLine, lines_count, pageNumber }) => {
+			read_file: async ({ uri, startLine, endLine, linesCount, pageNumber }) => {
 				await voidModelService.initializeModel(uri)
 				const { model } = await voidModelService.getModelSafe(uri)
 				if (model === null) {
@@ -409,7 +413,6 @@ export class ToolsService implements IToolsService {
 				let startLineNumber: number
 				let endLineNumber: number
 
-				const linesCount = lines_count ?? null
 				const startLineParam = startLine ?? null
 				const endLineParam = endLine ?? null
 
@@ -827,12 +830,12 @@ export class ToolsService implements IToolsService {
 		// given to the LLM after the call for successful tool calls
 		this.stringOfResult = {
 			read_file: (params, result) => {
-				const { uri, startLine, endLine, lines_count, pageNumber } = params;
+				const { uri, startLine, endLine, linesCount, pageNumber } = params;
 				const { fileContents, totalNumLines, totalFileLen, hasNextPage, readingLines } = result;
 
 
-				const isFullFile = !startLine && !endLine && !lines_count;
-				const isLinesMode = lines_count !== null;
+				const isFullFile = startLine === null && endLine === null && linesCount === null;
+				const isLinesMode = linesCount !== null;
 				const isRangeMode = !isFullFile && !isLinesMode;
 
 
@@ -851,7 +854,7 @@ export class ToolsService implements IToolsService {
 						if (!isFullFile) {
 
 							if (isLinesMode) {
-								nextPageHint += `, start_line=${startLine ?? 1}, lines_count=${lines_count}`;
+								nextPageHint += `, start_line=${startLine ?? 1}, lines_count=${linesCount}`;
 							} else if (isRangeMode) {
 								nextPageHint += `, start_line=${startLine ?? 1}, end_line=${endLine ?? totalNumLines}`;
 							}
@@ -859,10 +862,10 @@ export class ToolsService implements IToolsService {
 					} else if (isLinesMode) {
 
 						const actualStartLine = startLine ?? 1;
-						const actualEndLine = actualStartLine + (lines_count ?? 150) - 1;
+						const actualEndLine = actualStartLine + (linesCount ?? 150) - 1;
 						const nextStartLine = Math.min(actualEndLine + 1, totalNumLines);
 
-						nextPageHint = `\nNext: start_line=${nextStartLine}, lines_count=${lines_count}. Total lines: ${totalNumLines}.`;
+						nextPageHint = `\nNext: start_line=${nextStartLine}, lines_count=${linesCount}. Total lines: ${totalNumLines}.`;
 					} else {
 
 						nextPageHint = `\nMore info because truncated: this file has ${totalNumLines} lines, or ${totalFileLen} characters.\n`;

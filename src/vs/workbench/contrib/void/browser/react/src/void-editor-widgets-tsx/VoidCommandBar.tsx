@@ -7,9 +7,11 @@
 import { useAccessor, useCommandBarState, useIsDark } from '../util/services.js';
 
 import '../styles.css'
-import { useEffect, useState, useRef } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
+import { ScrollType } from '../../../../../../../editor/common/editorCommon.js';
+import { acceptAllBg, acceptBorder, buttonFontSize, buttonTextColor, rejectAllBg, rejectBg, rejectBorder } from '../../../../../../../platform/void/common/helpers/colors.js';
 import { VoidCommandBarProps } from '../../../voidCommandBarService.js';
-import { Check, EllipsisVertical, MoveDown, MoveLeft, MoveRight, MoveUp, X } from 'lucide-react';
+import { Check, EllipsisVertical, Menu, MoveDown, MoveLeft, MoveRight, MoveUp, X } from 'lucide-react';
 import {
 	VOID_GOTO_NEXT_DIFF_ACTION_ID,
 	VOID_GOTO_PREV_DIFF_ACTION_ID,

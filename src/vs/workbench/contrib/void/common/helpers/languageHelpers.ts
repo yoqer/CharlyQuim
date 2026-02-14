@@ -4,7 +4,7 @@
  *--------------------------------------------------------------------------------------*/
 
 import { URI } from '../../../../../base/common/uri.js';
-import { ILanguageService } from '../../../../../editor/common/languages/language.js';
+import { ILanguageService } from '../../../../../editor/common/language/language.js';
 import { separateOutFirstLine } from '../../../../../platform/void/common/helpers/util.js';
 
 

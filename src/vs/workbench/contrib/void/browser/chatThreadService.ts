@@ -13,7 +13,7 @@ import { generateUuid } from '../../../../base/common/uuid.js';
 import { IVoidSettingsService } from '../../../../platform/void/common/voidSettingsService.js';
 import { ILLMMessageService } from '../common/sendLLMMessageService.js';
 import { IToolsService } from '../common/toolsService.js';
-import { ILanguageFeaturesService } from '../../../../editor/common/services/languageFeatures.js';
+import { ILanguageFeaturesService } from '../../../../editor/common/language/services/languageFeatures.js';
 import { ILanguageModelToolsService } from '../../chat/common/languageModelToolsService.js';
 import { IMetricsService } from '../../../../platform/void/common/metricsService.js';
 import { IVoidModelService } from '../common/voidModelService.js';

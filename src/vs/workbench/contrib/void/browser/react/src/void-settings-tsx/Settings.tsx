@@ -1,3 +1,8 @@
+/*--------------------------------------------------------------------------------------
+ *  Copyright 2025 Glass Devtools, Inc. All rights reserved.
+ *  Licensed under the Apache License, Version 2.0. See LICENSE.txt for more information.
+ *--------------------------------------------------------------------------------------*/
+
 import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import {
 	displayInfoOfFeatureName,
@@ -31,6 +36,10 @@ const promptCachingDocsUrl = 'https://openrouter.ai/docs/guides/best-practices/p
 
 const PromptCachingHelp: React.FC = () => {
 	const [open, setOpen] = useState(false);
+	// allow-any-unicode-next-line
+	const expandedIcon = '▲';
+	// allow-any-unicode-next-line
+	const collapsedIcon = '▼';
 	const onDocsHover = () => {
 		try {
 			if (typeof navigator !== 'undefined' && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
@@ -48,7 +57,7 @@ const PromptCachingHelp: React.FC = () => {
 				onClick={() => setOpen(v => !v)}
 			>
 				<span>Prompt caching (cache_control)</span>
-				<span className="ml-2 text-[10px]">{open ? '▲' : '▼'}</span>
+				<span className="ml-2 text-[10px]">{open ? expandedIcon : collapsedIcon}</span>
 			</button>
 			{open && (
 				<div className="mt-1 space-y-1 text-xs text-void-fg-3">
@@ -76,6 +85,10 @@ const PromptCachingHelp: React.FC = () => {
 
 const ReasoningHelp: React.FC<{ rc: any | null }> = ({ rc }) => {
 	const [open, setOpen] = useState(false);
+	// allow-any-unicode-next-line
+	const expandedIcon = '▲';
+	// allow-any-unicode-next-line
+	const collapsedIcon = '▼';
 	if (!rc) return null;
 
 	const hasSlider = rc && typeof rc === 'object' && rc.reasoningSlider && typeof rc.reasoningSlider === 'object';
@@ -91,7 +104,7 @@ const ReasoningHelp: React.FC<{ rc: any | null }> = ({ rc }) => {
 				onClick={() => setOpen(v => !v)}
 			>
 				<span>Reasoning capabilities (current, read-only)</span>
-				<span className="ml-2 text-[10px]">{open ? '▲' : '▼'}</span>
+				<span className="ml-2 text-[10px]">{open ? expandedIcon : collapsedIcon}</span>
 			</button>
 			{open && (
 				<ul className="mt-1 text-xs list-disc ml-4 space-y-1">
@@ -351,7 +364,7 @@ export const DynamicProviderSettings = () => {
 			<h3 className="text-xl mb-2">Custom Providers</h3>
 			<div className="grid gap-4 md:grid-cols-2">
 				<div>
-					<div className="text-xs text-void-fg-3 mb-2">From OpenRouter:</div>
+					<div className="text-xs text-void-fg-1 mb-2">From OpenRouter:</div>
 					<div className="border border-void-border-2 rounded p-2 max-h-48 overflow-auto">
 						{providers.length === 0 && status !== 'loading' && (
 							<div className="text-xs text-void-fg-4">No providers loaded</div>
@@ -365,7 +378,7 @@ export const DynamicProviderSettings = () => {
 					</div>
 				</div>
 				<div>
-					<div className="text-xs text-void-fg-3 mb-2">Configured providers:</div>
+					<div className="text-xs text-void-fg-1 mb-2">Configured providers:</div>
 					<div className="border border-void-border-2 rounded p-2 max-h-48 overflow-auto">
 						{configured.length === 0 && <div className="text-xs text-void-fg-4">None</div>}
 						{configured.map((slug: string) => (
@@ -386,7 +399,7 @@ export const DynamicProviderSettings = () => {
 					compact
 					data-tooltip-id="void-tooltip"
 					data-tooltip-place="right"
-					data-tooltip-content="Slug — prefix in modelId, e.g. openai in openai/gpt‑4. Any (optionally from the list) can be used, but modelId must start with this slug."
+					data-tooltip-content="Slug - prefix in modelId, e.g. openai in openai/gpt-4. Any (optionally from the list) can be used, but modelId must start with this slug."
 				/>
 				<VoidSimpleInputBox
 					value={form.endpoint}
@@ -395,7 +408,7 @@ export const DynamicProviderSettings = () => {
 					compact
 					data-tooltip-id="void-tooltip"
 					data-tooltip-place="right"
-					data-tooltip-content="Basic API URL. OpenAI‑compatible — usually /v1; Anthropic — /v1 (but need anthropic-version header); Gemini — generativelanguage.googleapis.com/v1."
+					data-tooltip-content="Basic API URL. OpenAI-compatible - usually /v1; Anthropic - /v1 (but need anthropic-version header); Gemini - generativelanguage.googleapis.com/v1."
 				/>
 				<VoidSimpleInputBox
 					value={form.apiKey}
@@ -415,7 +428,7 @@ export const DynamicProviderSettings = () => {
 						className="text-xs text-void-fg-3 bg-void-bg-1 border border-void-border-1 rounded p-0.5 px-1"
 						data-tooltip-id="void-tooltip"
 						data-tooltip-place="right"
-						data-tooltip-content="API compatibility: OpenAI — most /v1; Anthropic — messages + anthropic-version; Gemini — generativelanguage.googleapis.com."
+						data-tooltip-content="API compatibility: OpenAI - most /v1; Anthropic - messages + anthropic-version; Gemini - generativelanguage.googleapis.com."
 					/>
 					<VoidCustomDropdownBox
 						options={[false, 'system-role', 'developer-role', 'separated']}
@@ -427,7 +440,7 @@ export const DynamicProviderSettings = () => {
 						className="text-xs text-void-fg-3 bg-void-bg-1 border border-void-border-1 rounded p-0.5 px-1"
 						data-tooltip-id="void-tooltip"
 						data-tooltip-place="right"
-						data-tooltip-content="system-role — OpenAI-compatible; developer-role — OpenAI (some models); separated — Anthropic/Gemini (system separately); false — disable system message."
+						data-tooltip-content="system-role - OpenAI-compatible; developer-role - OpenAI (some models); separated - Anthropic/Gemini (system separately); false - disable system message."
 					/>
 					<VoidCustomDropdownBox
 						options={['disabled', 'openai-style', 'anthropic-style', 'gemini-style']}
@@ -443,7 +456,7 @@ export const DynamicProviderSettings = () => {
 					/>
 				</div>
 				<div>
-					<div className="text-xs text-void-fg-3 mb-1">Additional Headers (JSON)</div>
+					<div className="text-xs text-void-fg-1 mb-1">Additional Headers (JSON)</div>
 					<textarea
 						className="w-full min-h-[120px] p-2 rounded-sm border border-void-border-2 bg-void-bg-2 resize-none font-mono text-xs"
 						value={form.additionalHeadersText}
@@ -455,16 +468,22 @@ export const DynamicProviderSettings = () => {
 					{errorMsg && <div className="text-xs text-red-500 mt-1">{errorMsg}</div>}
 				</div>
 				<div className="flex gap-2 items-center">
-					<VoidButtonBgDarken onClick={onSave} className="px-3 py-1 bg-[#0e70c0] text-white">
+					<VoidButtonBgDarken
+						onClick={onSave}
+						className="px-3 py-1 !bg-[var(--vscode-button-background)] !text-[var(--vscode-button-foreground)] hover:!bg-[var(--vscode-button-hoverBackground)]"
+					>
 						{status === 'saving' ? 'Saving...' : status === 'saved' ? 'Saved' : 'Save provider'}
 					</VoidButtonBgDarken>
-					<VoidButtonBgDarken onClick={onDelete} className="px-3 py-1">
+					<VoidButtonBgDarken
+						onClick={onDelete}
+						className="px-3 py-1 !bg-[var(--vscode-button-secondaryBackground)] !text-[var(--vscode-button-secondaryForeground)] hover:!bg-[var(--vscode-button-secondaryHoverBackground)]"
+					>
 						Delete
 					</VoidButtonBgDarken>
 					{status === 'loading' && <span className="text-xs text-void-fg-4">Loading providers…</span>}
 				</div>
-				<div className="text-xs text-void-fg-3">
-					Save: saves the provider and enables its configuration in the API‑resolver. Delete: removes the provider.
+				<div className="text-xs text-void-fg-2">
+					Save: saves the provider and enables its configuration in the API-resolver. Delete: removes the provider.
 				</div>
 			</div>
 		</div>
@@ -500,7 +519,7 @@ const DynamicModelSettingsDialog = ({
 	const defaultRoutingJson = '{\n  "order": ["openai", "anthropic"],\n  "allow_fallbacks": true,\n  "sort": "throughput",\n  "max_price": { "prompt": 0.000005, "completion": 0.00002 }\n}';
 	const [routingEnabled, setRoutingEnabled] = useState(false);
 	const [routingJson, setRoutingJson] = useState<string>(defaultRoutingJson);
-	
+
 	type ReasoningPreset = 'budget' | 'effort' | 'thinking' | 'none';
 	const [preset, setPreset] = useState<ReasoningPreset>('none');
 	type ToolFormatPreset = 'inherit' | 'disabled' | 'openai-style' | 'anthropic-style' | 'gemini-style';
@@ -508,7 +527,7 @@ const DynamicModelSettingsDialog = ({
 	type SystemMessagePreset = 'inherit' | 'false' | 'system-role' | 'developer-role' | 'separated';
 	const [systemPreset, setSystemPreset] = useState<SystemMessagePreset>('inherit');
 
-	
+
 	const allowedKeys = [
 		'contextWindow',
 		'reservedOutputTokenSpace',
@@ -529,7 +548,7 @@ const DynamicModelSettingsDialog = ({
 		} catch { return slug || ''; }
 	}, [slug, registry]);
 
-	
+
 	const inferPresetFromRC = (rc: any): ReasoningPreset => {
 		if (!rc || typeof rc !== 'object') return 'none';
 		if (Array.isArray(rc.openSourceThinkTags)) return 'thinking';
@@ -567,7 +586,7 @@ const DynamicModelSettingsDialog = ({
 				if (cancelled) return;
 				setEffectiveCaps(caps);
 
-				
+
 				const basePartial: any = {};
 				for (const k of allowedKeys) {
 					if (k in (caps || {})) {
@@ -653,7 +672,7 @@ const DynamicModelSettingsDialog = ({
 		}
 	}, [paramMode, supportedParamsStr, defaultParamsStr]);
 
-	
+
 	const buildPresetRC = (kind: ReasoningPreset, base?: any) => {
 		if (kind === 'thinking') {
 			const tags = base?.openSourceThinkTags ?? ['<think>', '</think>'];
@@ -665,7 +684,7 @@ const DynamicModelSettingsDialog = ({
 			};
 		}
 		if (kind === 'budget') {
-			
+
 			const min = base?.reasoningSlider?.min ?? 1024;
 			const max = base?.reasoningSlider?.max ?? 8192;
 			const dfl = base?.reasoningSlider?.default ?? 1024;
@@ -698,9 +717,9 @@ const DynamicModelSettingsDialog = ({
 		return undefined;
 	};
 
-	
+
 	const applyPreset = (kind: ReasoningPreset) => {
-		if (!overrideEnabled) return; 
+		if (!overrideEnabled) return;
 		try {
 			const obj = JSON.parse(jsonText || '{}');
 			const baseRC = effectiveCaps?.reasoningCapabilities;
@@ -710,7 +729,7 @@ const DynamicModelSettingsDialog = ({
 				setJsonText(JSON.stringify(obj, null, 2));
 			}
 		} catch {
-			
+
 			try {
 				const obj = JSON.parse(placeholder || '{}');
 				const baseRC = effectiveCaps?.reasoningCapabilities;
@@ -720,7 +739,7 @@ const DynamicModelSettingsDialog = ({
 					setJsonText(JSON.stringify(obj, null, 2));
 				}
 			} catch {
-				
+
 			}
 		}
 	};
@@ -825,7 +844,7 @@ const DynamicModelSettingsDialog = ({
 			return;
 		}
 
-		
+
 		const cleaned: any = {};
 		for (const k of allowedKeys) {
 			if (k in parsed && parsed[k] !== null && parsed[k] !== undefined && parsed[k] !== '') {
@@ -1079,7 +1098,10 @@ const DynamicModelSettingsDialog = ({
 					<VoidButtonBgDarken onClick={onClose} className="px-3 py-1">
 						Cancel
 					</VoidButtonBgDarken>
-					<VoidButtonBgDarken onClick={onSave} className="px-3 py-1 bg-[#0e70c0] text-white">
+					<VoidButtonBgDarken
+						onClick={onSave}
+						className="px-3 py-1 !bg-[var(--vscode-button-background)] !text-[var(--vscode-button-foreground)] hover:!bg-[var(--vscode-button-hoverBackground)]"
+					>
 						Save
 					</VoidButtonBgDarken>
 				</div>
@@ -1101,6 +1123,8 @@ export const DynamicProviderModels = () => {
 	const [showFreeOnly, setShowFreeOnly] = useState<Record<string, boolean>>({});
 	const [modelsCollapsedBySlug, setModelsCollapsedBySlug] = useState<Record<string, boolean>>({});
 	const [, force] = useState(0);
+	// allow-any-unicode-next-line
+	const removeModelIcon = '✕';
 
 	const isOpenRouterSlug = (slug: string) => String(slug).toLowerCase() === 'openrouter';
 
@@ -1143,9 +1167,9 @@ export const DynamicProviderModels = () => {
 		try { return registry.getProviderModels(slug) || []; } catch { return []; }
 	};
 
-	
+
 	const visibleModelsOf = (slug: string): string[] => {
-		const models = Array.from(new Set(rawModelsOf(slug))); 
+		const models = Array.from(new Set(rawModelsOf(slug)));
 		const onlyFree = !!showFreeOnly[slug];
 		if (onlyFree) return models.filter(isFreeVariant);
 		return models;
@@ -1153,7 +1177,7 @@ export const DynamicProviderModels = () => {
 
 	const hasFreeModels = (slug: string): boolean => {
 		const raw = rawModelsOf(slug);
-		
+
 		return raw.some(id => isFreeVariant(id));
 	};
 
@@ -1276,7 +1300,7 @@ export const DynamicProviderModels = () => {
 									</div>
 								</div>
 
-								<div className="text-xs text-void-fg-3">
+								<div className="text-xs text-void-fg-2">
 									API style: {s.apiStyle ?? 'openai-compatible'} · Endpoint: {s.endpoint || '(not set)'}
 								</div>
 
@@ -1345,7 +1369,7 @@ export const DynamicProviderModels = () => {
 																onClick={() => onRemoveModel(slug, visibleName)}
 																title="Remove model"
 															>
-																✕
+																{removeModelIcon}
 															</button>
 														</div>
 													);
@@ -1388,7 +1412,7 @@ export const AIInstructionsBox = () => {
 	const voidSettingsService = accessor.get('IVoidSettingsService')
 	const voidSettingsState = useSettingsState()
 	return <VoidInputBox2
-		className='min-h-[81px] p-3 rounded-sm'
+		className='w-full min-h-[81px] p-3 rounded-sm border border-void-border-2 bg-void-bg-1'
 		initValue={voidSettingsState.globalSettings.aiInstructions}
 		placeholder={`Insert your instruction here; this will add your instructions to the system prompt. To make them global, save your instructions in a .voidrules file at the workspace root.`}
 		multiline
@@ -1421,7 +1445,7 @@ const RedoOnboardingButton = ({ className }: { className?: string }) => {
 	const accessor = useAccessor()
 	const voidSettingsService = accessor.get('IVoidSettingsService')
 	return <div
-		className={`text-void-fg-4 flex flex-nowrap text-nowrap items-center hover:brightness-110 cursor-pointer ${className}`}
+		className={`text-void-fg-2 flex flex-nowrap text-nowrap items-center hover:brightness-110 cursor-pointer ${className}`}
 		onClick={() => { voidSettingsService.setGlobalSetting('isOnboardingComplete', false) }}
 	>
 		See onboarding screen?
