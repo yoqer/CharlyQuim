@@ -143,15 +143,16 @@ suite('ToolsService - workspace-aware URI normalization', () => {
 
 		const params = svc.validateParams.read_file({
 			uri: './src/file.ts',
-			start_line: 792,
-			lines_count: 11,
+			start_line: '792',
+			lines_count: '11',
 		});
 
 		const { result } = await svc.callTool.read_file(params);
-		assert.strictEqual(result.readingLines, '792-802');
-		assert.strictEqual(result.readLinesCount, 11);
+		const readResult = await result;
+		assert.strictEqual(readResult.readingLines, '792-802');
+		assert.strictEqual(readResult.readLinesCount, 11);
 
-		const out = svc.stringOfResult.read_file(params, result);
+		const out = svc.stringOfResult.read_file(params, readResult);
 		assert.ok(
 			out.startsWith('/workspace/root/src/file.ts (lines 792-802)\n```'),
 			`Unexpected header: ${out.slice(0, 120)}`

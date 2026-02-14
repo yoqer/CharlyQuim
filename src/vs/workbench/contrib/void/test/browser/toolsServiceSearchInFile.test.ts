@@ -65,28 +65,32 @@ suite('ToolsService - search_in_file', () => {
 		const svc = createToolsServiceWithContent(['alpha', 'BETA', 'gamma'].join('\n'));
 		const uri = URI.file('/workspace/root/src/a.ts');
 		const { result } = await svc.callTool.search_in_file({ uri, query: 'beta', isRegex: false } as any);
-		assert.deepStrictEqual(result.lines, [2]);
+		const searchResult = await result;
+		assert.deepStrictEqual(searchResult.lines, [2]);
 	});
 
 	test('string search keeps exact matches and does not widen results unnecessarily', async () => {
 		const svc = createToolsServiceWithContent(['Foo', 'foo', 'FOO'].join('\n'));
 		const uri = URI.file('/workspace/root/src/a.ts');
 		const { result } = await svc.callTool.search_in_file({ uri, query: 'foo', isRegex: false } as any);
-		assert.deepStrictEqual(result.lines, [2]);
+		const searchResult = await result;
+		assert.deepStrictEqual(searchResult.lines, [2]);
 	});
 
 	test('regex search supports /pattern/flags literal format', async () => {
 		const svc = createToolsServiceWithContent(['Alpha', 'BETA', 'beta'].join('\n'));
 		const uri = URI.file('/workspace/root/src/a.ts');
 		const { result } = await svc.callTool.search_in_file({ uri, query: '/beta/i', isRegex: true } as any);
-		assert.deepStrictEqual(result.lines, [2, 3]);
+		const searchResult = await result;
+		assert.deepStrictEqual(searchResult.lines, [2, 3]);
 	});
 
 	test('regex search does not lose matches when global flag is present', async () => {
 		const svc = createToolsServiceWithContent(['foo', 'foo', 'foo'].join('\n'));
 		const uri = URI.file('/workspace/root/src/a.ts');
 		const { result } = await svc.callTool.search_in_file({ uri, query: '/foo/g', isRegex: true } as any);
-		assert.deepStrictEqual(result.lines, [1, 2, 3]);
+		const searchResult = await result;
+		assert.deepStrictEqual(searchResult.lines, [1, 2, 3]);
 	});
 
 	test('regex search throws clear error on invalid pattern', async () => {
