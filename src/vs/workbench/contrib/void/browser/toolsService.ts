@@ -180,6 +180,13 @@ export class ToolsService implements IToolsService {
 			if (typeof uriStr !== 'string') throw new Error(`Invalid LLM output format: Provided uri must be a string, but it's a(n) ${typeof uriStr}. Full value: ${JSON.stringify(uriStr)}.`)
 
 			const raw = uriStr.trim()
+			const hasScheme = /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(raw) && !/^[a-zA-Z]:[\\/]/.test(raw)
+			if (hasScheme) {
+				return URI.parse(raw)
+			}
+
+			const normalizeFsPath = (p: string) => String(p ?? '').replace(/\\/g, '/').replace(/\/+$/g, '')
+			const rawNorm = normalizeFsPath(raw)
 
 			// No workspace open: fall back to plain file paths.
 			if (!workspaceFolderUris.length) {
@@ -189,16 +196,22 @@ export class ToolsService implements IToolsService {
 			// If the string already starts with a workspace root path, treat it as a
 			// full filesystem path inside that workspace.
 			for (const root of workspaceFolderUris) {
-				if (root.scheme === 'file' && raw.startsWith(root.fsPath)) {
-					return URI.file(raw)
+				const rootNorm = normalizeFsPath(root.fsPath)
+				if (!rootNorm) continue
+				if (rawNorm === rootNorm || rawNorm.startsWith(rootNorm + '/')) {
+					if (root.scheme === 'file') {
+						return URI.file(raw)
+					}
+					const rel = rawNorm === rootNorm ? '' : rawNorm.slice(rootNorm.length + 1)
+					return rel ? resolvePath(root, rel) : root
 				}
 			}
+
+			const base = workspaceFolderUris[0]
 
 			// Otherwise, treat as workspace-relative. This intentionally maps
 			// values like "src/...", "./src/..." and "/src/..." into the first
 			// workspace folder instead of the filesystem root.
-			const base = workspaceFolderUris[0]
-
 			let rel = raw
 			if (rel.startsWith('./') || rel.startsWith('.\\')) {
 				rel = rel.slice(2)
@@ -225,7 +238,6 @@ export class ToolsService implements IToolsService {
 				const file = norm(uri.fsPath)
 
 				for (const rootUri of workspaceFolderUris) {
-					if (rootUri.scheme !== 'file') continue
 					const root = norm(rootUri.fsPath)
 					if (!root) continue
 					if (file === root) return '.'

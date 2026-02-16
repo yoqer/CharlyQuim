@@ -11,6 +11,7 @@ import { IEditorContribution } from '../../../../editor/common/editorCommon.js';
 import { Selection } from '../../../../editor/common/language/core/selection.js';
 import { RunOnceScheduler } from '../../../../base/common/async.js';
 import * as dom from '../../../../base/browser/dom.js';
+import { Schemas } from '../../../../base/common/network.js';
 import { mountVoidSelectionHelper } from './react/out/void-editor-widgets-tsx/index.js';
 import { IInstantiationService } from '../../../../platform/instantiation/common/instantiation.js';
 import { IVoidSettingsService } from '../../../../platform/void/common/voidSettingsService.js';
@@ -127,7 +128,8 @@ export class SelectionHelperContribution extends Disposable implements IEditorCo
 			return;
 		}
 
-		if (this._editor.getModel().uri.scheme !== 'file') {
+		const modelScheme = this._editor.getModel().uri.scheme;
+		if (modelScheme !== Schemas.file && modelScheme !== Schemas.vscodeRemote) {
 			return;
 		}
 

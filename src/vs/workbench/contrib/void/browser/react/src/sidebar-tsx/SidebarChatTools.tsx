@@ -137,7 +137,7 @@ export const toolNameToDesc = (toolName: ToolName, _toolParams: any, accessor: a
 	const x = {
 		'read_file': () => {
 			const toolParams = _toolParams as any;
-			const uri = getUriFromToolParams(toolParams);
+			const uri = getUriFromToolParams(toolParams, accessor);
 			const fsPath = uri?.fsPath;
 			return {
 				desc1: fsPath ? getBasename(fsPath) : '',
@@ -146,7 +146,7 @@ export const toolNameToDesc = (toolName: ToolName, _toolParams: any, accessor: a
 		},
 		'ls_dir': () => {
 			const toolParams = _toolParams as any;
-			const uri = getUriFromToolParams(toolParams);
+			const uri = getUriFromToolParams(toolParams, accessor);
 			const fsPath = uri?.fsPath;
 			return {
 				desc1: fsPath ? (getFolderName(fsPath) ?? '/') : '',
@@ -163,7 +163,7 @@ export const toolNameToDesc = (toolName: ToolName, _toolParams: any, accessor: a
 		},
 		'search_in_file': () => {
 			const toolParams = _toolParams as any;
-			const uri = getUriFromToolParams(toolParams);
+			const uri = getUriFromToolParams(toolParams, accessor);
 			const fsPath = uri?.fsPath;
 			return {
 				desc1: fsPath ? getBasename(fsPath) : '',
@@ -173,7 +173,7 @@ export const toolNameToDesc = (toolName: ToolName, _toolParams: any, accessor: a
 
 		'create_file_or_folder': () => {
 			const toolParams = _toolParams as any;
-			const uri = getUriFromToolParams(toolParams);
+			const uri = getUriFromToolParams(toolParams, accessor);
 			const fsPath = uri?.fsPath;
 			const isFolder = toolParams?.isFolder ?? false;
 			return {
@@ -185,7 +185,7 @@ export const toolNameToDesc = (toolName: ToolName, _toolParams: any, accessor: a
 		},
 		'delete_file_or_folder': () => {
 			const toolParams = _toolParams as any;
-			const uri = getUriFromToolParams(toolParams);
+			const uri = getUriFromToolParams(toolParams, accessor);
 			const fsPath = uri?.fsPath;
 			const isFolder = toolParams?.isFolder ?? false;
 			return {
@@ -197,7 +197,7 @@ export const toolNameToDesc = (toolName: ToolName, _toolParams: any, accessor: a
 		},
 		'rewrite_file': () => {
 			const toolParams = _toolParams as any;
-			const uri = getUriFromToolParams(toolParams);
+			const uri = getUriFromToolParams(toolParams, accessor);
 			const fsPath = uri?.fsPath;
 			return {
 				desc1: fsPath ? getBasename(fsPath) : '',
@@ -215,7 +215,7 @@ export const toolNameToDesc = (toolName: ToolName, _toolParams: any, accessor: a
 
 		'get_dir_tree': () => {
 			const toolParams = _toolParams as any;
-			const uri = getUriFromToolParams(toolParams);
+			const uri = getUriFromToolParams(toolParams, accessor);
 			const fsPath = uri?.fsPath;
 			return {
 				desc1: fsPath ? (getFolderName(fsPath) ?? '/') : '',
@@ -224,7 +224,7 @@ export const toolNameToDesc = (toolName: ToolName, _toolParams: any, accessor: a
 		},
 		'read_lint_errors': () => {
 			const toolParams = _toolParams as any;
-			const uri = getUriFromToolParams(toolParams);
+			const uri = getUriFromToolParams(toolParams, accessor);
 			const fsPath = uri?.fsPath;
 			return {
 				desc1: fsPath ? getBasename(fsPath) : '',
@@ -234,11 +234,13 @@ export const toolNameToDesc = (toolName: ToolName, _toolParams: any, accessor: a
 
 		'edit_file': () => {
 			const toolParams = _toolParams as any;
-			const uri = getUriFromToolParams(toolParams);
+			const uri = getUriFromToolParams(toolParams, accessor);
 			const fsPath = uri?.fsPath;
+			const relPath = uri ? (getRelative(uri, accessor) ?? undefined) : undefined;
+			const displayPath = relPath ? String(relPath).replace(/^[\\/]+/, '') || '.' : undefined;
 			return {
-				desc1: fsPath ? getBasename(fsPath) : '',
-				desc1Info: uri ? getRelative(uri, accessor) : undefined,
+				desc1: displayPath ?? (fsPath ? getBasename(fsPath) : ''),
+				desc1Info: displayPath ?? (uri ? getRelative(uri, accessor) : undefined),
 			};
 		},
 	};
@@ -360,10 +362,10 @@ export const ToolHeaderWrapper = ({
 			className={`text-void-fg-4 text-xs italic truncate ml-2
 				${isDesc1Clickable ? 'cursor-pointer hover:brightness-125 transition-all duration-150' : ''}
 			`}
-			onClick={(e) => {
+			onClick={isDesc1Clickable ? ((e) => {
 				e.stopPropagation();
 				desc1OnClick?.();
-			}}
+			}) : undefined}
 			{...desc1Info ? {
 				'data-tooltip-id': 'void-tooltip',
 				'data-tooltip-content': desc1Info,
@@ -534,13 +536,13 @@ export const ToolRequestAcceptRejectButtons = ({ toolName }: { toolName: ToolNam
 		<button
 			onClick={onAccept}
 			className={`
-                px-2 py-1
-                bg-[var(--vscode-button-background)]
-                text-[var(--vscode-button-foreground)]
-                hover:bg-[var(--vscode-button-hoverBackground)]
-                rounded
-                text-sm font-medium
-            `}
+				px-2 py-1
+				bg-[var(--vscode-button-background)]
+				text-[var(--vscode-button-foreground)]
+				hover:bg-[var(--vscode-button-hoverBackground)]
+				rounded
+				text-sm font-medium
+			`}
 		>
 			Approve
 		</button>
@@ -550,13 +552,13 @@ export const ToolRequestAcceptRejectButtons = ({ toolName }: { toolName: ToolNam
 		<button
 			onClick={onReject}
 			className={`
-                px-2 py-1
-                bg-[var(--vscode-button-secondaryBackground)]
-                text-[var(--vscode-button-secondaryForeground)]
-                hover:bg-[var(--vscode-button-secondaryHoverBackground)]
-                rounded
-                text-sm font-medium
-            `}
+				px-2 py-1
+				bg-[var(--vscode-button-secondaryBackground)]
+				text-[var(--vscode-button-secondaryForeground)]
+				hover:bg-[var(--vscode-button-secondaryHoverBackground)]
+				rounded
+				text-sm font-medium
+			`}
 		>
 			Cancel
 		</button>
@@ -566,13 +568,13 @@ export const ToolRequestAcceptRejectButtons = ({ toolName }: { toolName: ToolNam
 		<button
 			onClick={onSkip}
 			className={`
-                px-2 py-1
-                bg-[var(--vscode-button-background)]
-                text-[var(--vscode-button-foreground)]
-                hover:bg-[var(--vscode-button-hoverBackground)]
-                rounded
-                text-sm font-medium
-            `}
+				px-2 py-1
+				bg-[var(--vscode-button-background)]
+				text-[var(--vscode-button-foreground)]
+				hover:bg-[var(--vscode-button-hoverBackground)]
+				rounded
+				text-sm font-medium
+			`}
 		>
 			Skip
 		</button>
@@ -809,7 +811,7 @@ export const EditToolHeaderButtons = ({ applyBoxId, uri, codeStr, toolName, thre
 
 export const EditToolSoFar = ({ toolCallSoFar, }: { toolCallSoFar: RawToolCallObj }) => {
 	const accessor = useAccessor();
-	const uri = toolCallSoFar.rawParams.uri ? URI.file(toolCallSoFar.rawParams.uri) : undefined;
+	const uri = getUriFromToolParams(toolCallSoFar.rawParams, accessor);
 	const streamingToolName = toolCallSoFar.name as ToolName;
 	const toolConfig = titleOfToolName[streamingToolName];
 	const title = typeof toolConfig.proposed === 'function' ? toolConfig.proposed(toolCallSoFar.rawParams) : toolConfig.proposed;
@@ -1136,20 +1138,75 @@ interface EditToolResult {
 	lintErrors?: LintErrorItem[];
 }
 
-const getUriFromToolParams = (paramsAny: any): URI | undefined => {
+const resolvePathLikeToUri = (pathLike: unknown, accessor: any): URI | undefined => {
+	if (!pathLike) return undefined;
+
+	// URI instance
+	if (URI.isUri(pathLike)) return pathLike;
+
+	// URI DTO-like object (e.g. after serialization)
+	if (typeof pathLike === 'object') {
+		try {
+			const obj = pathLike as any;
+			if (typeof obj.scheme === 'string' && typeof obj.path === 'string') {
+				return URI.from(obj);
+			}
+			if (typeof obj.fsPath === 'string' && obj.fsPath.trim()) {
+				return URI.file(obj.fsPath.trim());
+			}
+		} catch {
+			// ignore and continue fallback parsing
+		}
+	}
+
+	if (typeof pathLike !== 'string') return undefined;
+	const raw = pathLike.trim();
+	if (!raw) return undefined;
+
+	// Real URI with scheme (file://, vscode-remote://, etc)
+	const hasScheme = /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(raw) && !/^[a-zA-Z]:[\\/]/.test(raw);
+	if (hasScheme) {
+		try { return URI.parse(raw); } catch { /* ignore */ }
+	}
+
+	const workspaceFolders = accessor.get('IWorkspaceContextService').getWorkspace()?.folders ?? [];
+	const root = workspaceFolders[0]?.uri as URI | undefined;
+
+	const isWindowsAbs = /^[a-zA-Z]:[\\/]/.test(raw);
+	const isPosixAbs = raw.startsWith('/');
+	const normalizeFsPath = (p: string) => String(p ?? '').replace(/\\/g, '/').replace(/\/+$/g, '');
+	const rootNorm = root ? normalizeFsPath(root.fsPath) : '';
+	const rawNorm = normalizeFsPath(raw);
+
+	if (root && rootNorm && (rawNorm === rootNorm || rawNorm.startsWith(rootNorm + '/'))) {
+		if (root.scheme === 'file') {
+			return URI.file(raw);
+		}
+		const rel = rawNorm === rootNorm ? '' : rawNorm.slice(rootNorm.length + 1);
+		return rel ? URI.joinPath(root, rel) : root;
+	}
+
+	// Keep behavior consistent with tool path normalization: in a workspace,
+	// "/src/..." is treated as workspace-relative, not filesystem root.
+	if (root) {
+		let rel = raw;
+		if (rel.startsWith('./') || rel.startsWith('.\\')) rel = rel.slice(2);
+		rel = rel.replace(/^[\\/]+/, '');
+		return rel ? URI.joinPath(root, rel) : root;
+	}
+
+	// No workspace: best effort as local file path
+	if (isWindowsAbs || isPosixAbs) {
+		try { return URI.file(raw); } catch { return undefined; }
+	}
+	try { return URI.file(raw); } catch { return undefined; }
+};
+
+const getUriFromToolParams = (paramsAny: any, accessor: any): URI | undefined => {
 	if (!paramsAny) return undefined;
-
-	// already URI
-	if (URI.isUri(paramsAny.uri)) return paramsAny.uri;
-
-	// string -> URI.file
-	if (typeof paramsAny.uri === 'string' && paramsAny.uri.trim()) return URI.file(paramsAny.uri.trim());
-	if (typeof paramsAny.path === 'string' && paramsAny.path.trim()) return URI.file(paramsAny.path.trim());
-
-	// fallback: sometimes stored elsewhere
-	if (typeof paramsAny.filePath === 'string' && paramsAny.filePath.trim()) return URI.file(paramsAny.filePath.trim());
-
-	return undefined;
+	return resolvePathLikeToUri(paramsAny.uri, accessor)
+		?? resolvePathLikeToUri(paramsAny.path, accessor)
+		?? resolvePathLikeToUri(paramsAny.filePath, accessor);
 };
 
 export type ResultWrapper<T extends ToolName> = (props: { toolMessage: Exclude<ToolMessage<T>, { type: 'invalid_params' }>, messageIdx: number, threadId: string }) => React.ReactNode
@@ -1167,7 +1224,7 @@ const EditTool = (
 	const title = getTitle(toolMessage);
 
 	const paramsAny = (toolMessage as any).params ?? {};
-	const uri = getUriFromToolParams(paramsAny);
+	const uri = getUriFromToolParams(paramsAny, accessor);
 	const fsPath = uri?.fsPath ?? '';
 
 	// IMPORTANT: toolNameToDesc is now defensive too
@@ -1335,10 +1392,8 @@ export const toolNameToComponent: Partial<Record<ToolName, { resultWrapper: AnyR
 
 			const paramsAny = (toolMessage as any).params ?? {};
 
-			// Robust URI extraction (ACP can sometimes deliver different shapes)
-			const uri: URI | undefined = URI.isUri(paramsAny?.uri)
-				? paramsAny.uri
-				: (typeof paramsAny?.uri === 'string' ? URI.file(paramsAny.uri) : undefined);
+			// Robust URI extraction (ACP/dynamic tools can deliver different shapes).
+			const uri = getUriFromToolParams(paramsAny, accessor);
 
 			const normalizeRelPath = (s: string | undefined): string | undefined => {
 				if (!s) return undefined;
@@ -1348,20 +1403,15 @@ export const toolNameToComponent: Partial<Record<ToolName, { resultWrapper: AnyR
 				t = t.replace(/^[\\/]+/, '');
 
 				// if empty -> workspace root
-				if (!t) return './';
-
-				// enforce "./" prefix
-				if (!t.startsWith('./') && !t.startsWith('.\\')) {
-					t = `./${t}`;
-				}
+				if (!t) return '.';
 				return t;
 			};
 
 			const relRaw = uri ? (getRelative(uri, accessor) ?? undefined) : undefined;
 			const relPath = normalizeRelPath(relRaw);
 
-			// If getRelative() fails, fall back to basename but still keep "./"
-			const displayPath = relPath ?? (uri ? `./${getBasename(uri.fsPath)}` : './unknown');
+			// If getRelative() fails, fall back to basename.
+			const displayPath = relPath ?? (uri ? getBasename(uri.fsPath) : 'unknown');
 
 			// Parse numeric params (ACP might send numbers as strings)
 			const asNum = (v: any): number | undefined => {
@@ -1391,8 +1441,8 @@ export const toolNameToComponent: Partial<Record<ToolName, { resultWrapper: AnyR
 			}
 
 			// HEADER FORMAT:
-			// Read file [N - K] ./relative/path
-			// Read file [all] ./relative/path
+			// Read file [N - K] relative/path
+			// Read file [all] relative/path
 			const title = `Read file [${rangeLabel}]`;
 
 			const language = uri
@@ -1467,7 +1517,7 @@ export const toolNameToComponent: Partial<Record<ToolName, { resultWrapper: AnyR
 			const languageService = accessor.get('ILanguageService');
 
 			const paramsAny = (toolMessage as any).params ?? {};
-			const uri = getUriFromToolParams(paramsAny);
+			const uri = getUriFromToolParams(paramsAny, accessor);
 
 			const language = uri
 				? (languageService.guessLanguageIdByFilepathOrFirstLine(uri) || 'plaintext')
@@ -1998,7 +2048,8 @@ export const toolNameToComponent: Partial<Record<ToolName, { resultWrapper: AnyR
 			const { rawParams, params } = toolMessage
 			const componentParams: ToolHeaderParams = { title, desc1, desc1Info, isError, icon, isRejected, }
 			applyCanceledUi(componentParams, toolMessage);
-			const relativePath = params.cwd ? getRelative(URI.file(params.cwd), accessor) : ''
+			const cwdUri = resolvePathLikeToUri(params?.cwd, accessor)
+			const relativePath = cwdUri ? getRelative(cwdUri, accessor) : ''
 			componentParams.info = relativePath ? `Running in ${relativePath}` : undefined
 
 			if (toolMessage.type === 'success') {

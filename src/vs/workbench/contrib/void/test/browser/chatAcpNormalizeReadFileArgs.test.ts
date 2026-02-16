@@ -53,6 +53,36 @@ suite('ChatAcpHandler.normalizeAcpArgsForUi (read_file ACP external)', () => {
 		assert.strictEqual(p.linesCount, 5);
 	});
 
+	test('absolute path in vscode-remote workspace keeps remote URI scheme', () => {
+		const root = URI.from({ scheme: 'vscode-remote', authority: 'ssh-remote+devbox', path: '/workspaces/proj' });
+		const p = normalizeAcpArgsForUi(
+			'read_file',
+			{ uri: '/workspaces/proj/src/a.ts (from line 10, limit 5 lines)' },
+			root
+		) as any;
+
+		assert.ok(URI.isUri(p.uri));
+		assert.strictEqual(p.uri.scheme, 'vscode-remote');
+		assert.strictEqual(p.uri.authority, 'ssh-remote+devbox');
+		assert.strictEqual(p.uri.path, '/workspaces/proj/src/a.ts');
+		assert.strictEqual(p.startLine, 10);
+		assert.strictEqual(p.linesCount, 5);
+	});
+
+	test('edit_file uri in vscode-remote workspace keeps remote URI scheme', () => {
+		const root = URI.from({ scheme: 'vscode-remote', authority: 'ssh-remote+devbox', path: '/workspaces/proj' });
+		const p = normalizeAcpArgsForUi(
+			'edit_file',
+			{ uri: '/workspaces/proj/src/a.ts' },
+			root
+		) as any;
+
+		assert.ok(URI.isUri(p.uri));
+		assert.strictEqual(p.uri.scheme, 'vscode-remote');
+		assert.strictEqual(p.uri.authority, 'ssh-remote+devbox');
+		assert.strictEqual(p.uri.path, '/workspaces/proj/src/a.ts');
+	});
+
 	test('does not override explicit startLine/linesCount but still cleans uri', () => {
 		const root = URI.file('/media/user/void');
 		const p = normalizeAcpArgsForUi(

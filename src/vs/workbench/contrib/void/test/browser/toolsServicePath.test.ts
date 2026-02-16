@@ -10,8 +10,7 @@ import { ensureNoDisposablesAreLeakedInTestSuite } from '../../../../../base/tes
 
 suite('ToolsService - workspace-aware URI normalization', () => {
 	ensureNoDisposablesAreLeakedInTestSuite();
-	function createToolsServiceWithWorkspaceRoot(rootFsPath: string) {
-		const rootUri = URI.file(rootFsPath);
+	function createToolsServiceWithWorkspaceUri(rootUri: URI) {
 		const fileService: any = {};
 		const workspaceContextService: any = {
 			getWorkspace() {
@@ -49,6 +48,9 @@ suite('ToolsService - workspace-aware URI normalization', () => {
 			voidSettingsService,
 		);
 	}
+	function createToolsServiceWithWorkspaceRoot(rootFsPath: string) {
+		return createToolsServiceWithWorkspaceUri(URI.file(rootFsPath));
+	}
 
 	test('read_file: ./relative path is resolved inside workspace root', () => {
 		const svc = createToolsServiceWithWorkspaceRoot('/workspace/root');
@@ -85,6 +87,39 @@ suite('ToolsService - workspace-aware URI normalization', () => {
 		} as any);
 		assert.ok(params.searchInFolder);
 		assert.strictEqual(params.searchInFolder!.fsPath, '/workspace/root/src');
+	});
+
+	test('read_file: absolute path under vscode-remote workspace keeps remote scheme', () => {
+		const rootUri = URI.from({ scheme: 'vscode-remote', authority: 'ssh-remote+devbox', path: '/workspace/root' });
+		const svc = createToolsServiceWithWorkspaceUri(rootUri);
+		const params = svc.validateParams.read_file({ uri: '/workspace/root/src/file.ts', page_number: 1 } as any);
+		assert.strictEqual(params.uri.scheme, 'vscode-remote');
+		assert.strictEqual(params.uri.authority, 'ssh-remote+devbox');
+		assert.strictEqual(params.uri.path, '/workspace/root/src/file.ts');
+	});
+
+	test('read_file: /src path in vscode-remote workspace stays workspace-relative', () => {
+		const rootUri = URI.from({ scheme: 'vscode-remote', authority: 'ssh-remote+devbox', path: '/workspace/root' });
+		const svc = createToolsServiceWithWorkspaceUri(rootUri);
+		const params = svc.validateParams.read_file({ uri: '/src/file.ts', page_number: 1 } as any);
+		assert.strictEqual(params.uri.scheme, 'vscode-remote');
+		assert.strictEqual(params.uri.authority, 'ssh-remote+devbox');
+		assert.strictEqual(params.uri.path, '/workspace/root/src/file.ts');
+	});
+
+	test('search_for_files: absolute folder under vscode-remote workspace keeps remote scheme', () => {
+		const rootUri = URI.from({ scheme: 'vscode-remote', authority: 'ssh-remote+devbox', path: '/workspace/root' });
+		const svc = createToolsServiceWithWorkspaceUri(rootUri);
+		const params = svc.validateParams.search_for_files({
+			query: 'needle',
+			search_in_folder: '/workspace/root/src',
+			is_regex: false,
+			page_number: 1,
+		} as any);
+		assert.ok(params.searchInFolder);
+		assert.strictEqual(params.searchInFolder!.scheme, 'vscode-remote');
+		assert.strictEqual(params.searchInFolder!.authority, 'ssh-remote+devbox');
+		assert.strictEqual(params.searchInFolder!.path, '/workspace/root/src');
 	});
 
 	test('read_file: start_line + lines_count keeps requested range (not to EOF)', async () => {

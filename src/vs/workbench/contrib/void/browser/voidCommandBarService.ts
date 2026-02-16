@@ -6,6 +6,7 @@
 import { Disposable, IDisposable, toDisposable } from '../../../../base/common/lifecycle.js';
 import { createDecorator, IInstantiationService } from '../../../../platform/instantiation/common/instantiation.js';
 import { URI } from '../../../../base/common/uri.js';
+import { Schemas } from '../../../../base/common/network.js';
 import * as dom from '../../../../base/browser/dom.js';
 import { Widget } from '../../../../base/browser/ui/widget.js';
 import { IOverlayWidget, ICodeEditor, OverlayWidgetPositionPreference } from '../../../../editor/browser/editorBrowser.js';
@@ -125,7 +126,8 @@ export class VoidCommandBarService extends Disposable implements IVoidCommandBar
 			const d1 = this._instantiationService.createInstance(AcceptRejectAllFloatingWidget, { editor });
 			disposablesOfEditorId[id].push(d1);
 			const d2 = editor.onDidChangeModel((e) => {
-				if (e.newModelUrl?.scheme !== 'file') return
+				const scheme = e.newModelUrl?.scheme;
+				if (scheme !== Schemas.file && scheme !== Schemas.vscodeRemote) return
 				this.activeURI = e.newModelUrl;
 				this._onDidChangeActiveURI.fire({ uri: e.newModelUrl })
 			})

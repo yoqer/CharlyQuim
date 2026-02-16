@@ -10,8 +10,6 @@ import { IVoidModelService } from '../common/voidModelService.js';
 import { CheckpointEntry, ChatMessage } from '../../../../platform/void/common/chatThreadServiceTypes.js';
 import { VoidFileSnapshot } from '../../../../platform/void/common/editCodeServiceTypes.js';
 
-
-
 export interface ICheckpointThreadAccess {
 	getThreadMessages(threadId: string): ChatMessage[];
 	getThreadState(threadId: string): { currCheckpointIdx: number | null };
@@ -28,6 +26,11 @@ export class ChatCheckpointManager {
 		@IEditCodeService private readonly _editCodeService: IEditCodeService,
 		@IVoidModelService private readonly _voidModelService: IVoidModelService
 	) { }
+
+	private _uriFromFsPath(fsPath: string): URI {
+		const { model } = this._voidModelService.getModelFromFsPath(fsPath);
+		return model?.uri ?? URI.file(fsPath);
+	}
 
 	public addToolEditCheckpoint(threadId: string, uri: URI, access: ICheckpointThreadAccess) {
 		const { model } = this._voidModelService.getModel(uri);
@@ -79,10 +82,10 @@ export class ChatCheckpointManager {
 		this._addUserModificationsToCurrCheckpoint({ threadId }, access);
 
 		/*
-		   UNDO Logic (Going Back)
-		   A,B,C are all files. x means a checkpoint where the file changed.
-		   We need to revert anything that happened between to+1 and from.
-		   We do this by finding the last x from 0...`to` for each file and applying those contents.
+			UNDO Logic (Going Back)
+			A,B,C are all files. x means a checkpoint where the file changed.
+			We need to revert anything that happened between to+1 and from.
+			We do this by finding the last x from 0...`to` for each file and applying those contents.
 		*/
 		if (toIdx < fromIdx) {
 			const { lastIdxOfURI } = this._getCheckpointsBetween(msgs, toIdx + 1, fromIdx);
@@ -111,15 +114,15 @@ export class ChatCheckpointManager {
 					const { voidFileSnapshot } = res;
 					if (!voidFileSnapshot) continue;
 
-					this._editCodeService.restoreVoidFileSnapshot(URI.file(fsPath), voidFileSnapshot);
+					this._editCodeService.restoreVoidFileSnapshot(this._uriFromFsPath(fsPath), voidFileSnapshot);
 					pendingFsPaths.delete(fsPath);
 				}
 			}
 		}
 
 		/*
-		   REDO Logic (Going Forward)
-		   We need to apply latest change for anything that happened between from+1 and to.
+			REDO Logic (Going Forward)
+			We need to apply latest change for anything that happened between from+1 and to.
 		*/
 		if (toIdx > fromIdx) {
 			const { lastIdxOfURI } = this._getCheckpointsBetween(msgs, fromIdx + 1, toIdx);
@@ -140,7 +143,7 @@ export class ChatCheckpointManager {
 					const { voidFileSnapshot } = res;
 					if (!voidFileSnapshot) continue;
 
-					this._editCodeService.restoreVoidFileSnapshot(URI.file(fsPath), voidFileSnapshot);
+					this._editCodeService.restoreVoidFileSnapshot(this._uriFromFsPath(fsPath), voidFileSnapshot);
 					pendingFsPaths.delete(fsPath);
 				}
 			}
@@ -179,7 +182,7 @@ export class ChatCheckpointManager {
 			const { voidFileSnapshot: oldVoidFileSnapshot } = res;
 
 			// if there was any change to the str or diffAreaSnapshot, update
-			const voidFileSnapshot = this._editCodeService.getVoidFileSnapshot(URI.file(fsPath));
+			const voidFileSnapshot = this._editCodeService.getVoidFileSnapshot(this._uriFromFsPath(fsPath));
 			if (oldVoidFileSnapshot === voidFileSnapshot) continue;
 
 			voidFileSnapshotOfURI[fsPath] = voidFileSnapshot;

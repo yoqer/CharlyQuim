@@ -1,3 +1,8 @@
+/*--------------------------------------------------------------------------------------
+ *  Copyright 2025 Glass Devtools, Inc. All rights reserved.
+ *  Licensed under the Apache License, Version 2.0. See LICENSE.txt for more information.
+ *--------------------------------------------------------------------------------------*/
+
 import { Disposable, IDisposable } from '../../../../base/common/lifecycle.js';
 import { URI } from '../../../../base/common/uri.js';
 import { timeout } from '../../../../base/common/async.js';
@@ -17,6 +22,55 @@ import { ChatToolOutputManager } from './ChatToolOutputManager.js';
 import { ILogService } from '../../../../platform/log/common/log.js';
 
 const _snakeToCamel = (s: string) => s.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
+const _normalizeFsPath = (p: string) => String(p ?? '').replace(/\\/g, '/').replace(/\/+$/g, '');
+const _stripDotPrefix = (p: string) => {
+	if (p.startsWith('./')) return p.substring(2);
+	if (p.startsWith('.\\')) return p.substring(2);
+	return p;
+};
+const _resolvePathWithWorkspace = (pathStr: string, workspaceRoot: URI | undefined): URI => {
+	try {
+		const s = String(pathStr ?? '').trim();
+		if (!s && workspaceRoot) return workspaceRoot;
+
+		// Real URI with scheme (file://, vscode-remote://, etc)
+		// Important: don't treat "C:foo" as a scheme URI
+		const hasScheme = /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(s) && !/^[a-zA-Z]:/.test(s);
+		if (hasScheme) {
+			return URI.parse(s);
+		}
+
+		// Windows absolute path: C:\... or C:/...
+		const isWindowsDriveAbs = /^[a-zA-Z]:[\\/]/.test(s);
+		// POSIX absolute path: /...
+		const isPosixAbs = s.startsWith('/');
+
+		if (workspaceRoot) {
+			const rootNorm = _normalizeFsPath(workspaceRoot.fsPath);
+			const inputNorm = _normalizeFsPath(s);
+			if (rootNorm && (inputNorm === rootNorm || inputNorm.startsWith(rootNorm + '/'))) {
+				const rel = inputNorm === rootNorm ? '' : inputNorm.slice(rootNorm.length + 1);
+				return rel ? URI.joinPath(workspaceRoot, rel) : workspaceRoot;
+			}
+
+			if (!isWindowsDriveAbs && !isPosixAbs) {
+				const cleanPath = _stripDotPrefix(s);
+				return URI.joinPath(workspaceRoot, cleanPath);
+			}
+
+			// In remote/virtual workspaces absolute paths should stay in that scheme.
+			if (workspaceRoot.scheme !== 'file') {
+				const remotePath = s.replace(/\\/g, '/');
+				return workspaceRoot.with({ path: remotePath.startsWith('/') ? remotePath : `/${remotePath}` });
+			}
+		}
+
+		// Fallback: treat as local file path
+		return URI.file(s);
+	} catch {
+		return URI.file(String(pathStr ?? ''));
+	}
+};
 const _deepCamelize = (v: any): any => {
 	if (Array.isArray(v)) return v.map(_deepCamelize);
 	if (v && typeof v === 'object') {
@@ -64,40 +118,7 @@ export const normalizeAcpArgsForUi = (
 		(p as any).uri = _stripReadRangeSuffixFromUri(uriStr);
 	}
 
-	const resolvePath = (pathStr: string): URI => {
-		try {
-			const s = String(pathStr ?? '');
-
-			// Windows absolute path: C:\... or C:/...
-			const isWindowsDriveAbs = /^[a-zA-Z]:[\\/]/.test(s);
-			// POSIX absolute path: /...
-			const isPosixAbs = s.startsWith('/');
-
-			if (isWindowsDriveAbs || isPosixAbs) {
-				return URI.file(s);
-			}
-
-			// Real URI with scheme (file://, vscode-remote://, etc)
-			// Important: don't treat "C:foo" as a scheme URI
-			const hasScheme = /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(s) && !/^[a-zA-Z]:/.test(s);
-			if (hasScheme) {
-				return URI.parse(s);
-			}
-
-			// Workspace-relative path
-			if (workspaceRoot) {
-				let cleanPath = s;
-				if (cleanPath.startsWith('./')) cleanPath = cleanPath.substring(2);
-				else if (cleanPath.startsWith('.\\')) cleanPath = cleanPath.substring(2);
-				return URI.joinPath(workspaceRoot, cleanPath);
-			}
-
-			// Fallback: treat as file path
-			return URI.file(s);
-		} catch {
-			return URI.file(String(pathStr ?? ''));
-		}
-	};
+	const resolvePath = (pathStr: string): URI => _resolvePathWithWorkspace(pathStr, workspaceRoot);
 
 	if (p && typeof (p as any).uri === 'string') (p as any).uri = resolvePath((p as any).uri);
 	if (p && typeof (p as any).searchInFolder === 'string') (p as any).searchInFolder = resolvePath((p as any).searchInFolder);
@@ -154,7 +175,7 @@ const _parseReadRangeFromText = (s: string): { startLine?: number; linesCount?: 
 		return {};
 	}
 
-	
+
 	m = str.match(/limit\s+(\d+)\s+lines/i);
 	if (m) {
 		const linesCount = Number(m[1]);
@@ -168,7 +189,7 @@ const _parseReadRangeFromText = (s: string): { startLine?: number; linesCount?: 
 
 const _stripReadRangeSuffixFromUri = (uriStr: string): string => {
 	const s = String(uriStr ?? '');
-	
+
 	return s.replace(/\s*\(\s*(?:from line\s+\d+\s*,\s*)?limit\s+\d+\s+lines\s*\)\s*$/i, '').trim();
 };
 
@@ -699,16 +720,16 @@ export class ChatAcpHandler extends Disposable {
 
 				// For streaming we DO NOT run ToolOutputManager: it can dedupe/normalize and accidentally blank output.
 				// Just show the current output.
-					const resultForUi: any = {
-						toolCallId: id,
-						...(tp.terminalId ? { terminalId: String(tp.terminalId) } : {}),
-						output,
-						...(typeof tp.truncated === 'boolean' ? { truncated: tp.truncated } : {}),
-						...(exitStatus ? {
-							exitCode: (typeof exitStatus.exitCode === 'number' || exitStatus.exitCode === null) ? exitStatus.exitCode : undefined,
-							signal: (typeof exitStatus.signal === 'string' || exitStatus.signal === null) ? exitStatus.signal : undefined
-						} : {})
-					};
+				const resultForUi: any = {
+					toolCallId: id,
+					...(tp.terminalId ? { terminalId: String(tp.terminalId) } : {}),
+					output,
+					...(typeof tp.truncated === 'boolean' ? { truncated: tp.truncated } : {}),
+					...(exitStatus ? {
+						exitCode: (typeof exitStatus.exitCode === 'number' || exitStatus.exitCode === null) ? exitStatus.exitCode : undefined,
+						signal: (typeof exitStatus.signal === 'string' || exitStatus.signal === null) ? exitStatus.signal : undefined
+					} : {})
+				};
 
 				this._logService.debug('[Void][ChatAcpHandler][tool_progress][APPLY]', JSON.stringify({
 					threadId,
@@ -802,7 +823,7 @@ export class ChatAcpHandler extends Disposable {
 					const uriRaw = (rawParamsForUi as any).uri;
 					const uriStr = (typeof uriRaw === 'string') ? uriRaw : '';
 
-					
+
 					const rangeFromUri = _parseReadRangeFromText(uriStr);
 					if (typeof (rawParamsForUi as any).startLine !== 'number' && typeof rangeFromUri.startLine === 'number') {
 						(rawParamsForUi as any).startLine = rangeFromUri.startLine;
@@ -811,7 +832,7 @@ export class ChatAcpHandler extends Disposable {
 						(rawParamsForUi as any).linesCount = rangeFromUri.linesCount;
 					}
 
-					
+
 					const hasSuffix = /\(\s*(?:from line\s+\d+\s*,\s*)?limit\s+\d+\s+lines\s*\)\s*$/i.test(uriStr);
 					if (typeof rObj.path === 'string' && rObj.path && (hasSuffix || !uriStr)) {
 						(rawParamsForUi as any).uri = rObj.path;
@@ -954,12 +975,12 @@ export class ChatAcpHandler extends Disposable {
 					});
 				}
 
-				
+
 				const diffs: Array<{ path: string; oldText?: string; newText: string }> | undefined = (normalizedResult as any)?.diffs;
 				if (diffs && diffs.length > 0) {
 					for (const d of diffs) {
 						try {
-							const uri = URI.file(d.path);
+							const uri = _resolvePathWithWorkspace(String(d.path ?? ''), rootUri);
 							await this._editCodeService.callBeforeApplyOrEdit(uri);
 							await (this._editCodeService as any).previewEditFileSimple?.({
 								uri,
