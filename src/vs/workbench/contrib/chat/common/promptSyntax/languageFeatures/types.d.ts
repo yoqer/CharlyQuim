@@ -4,7 +4,7 @@
  *--------------------------------------------------------------------------------------------*/
 
 import { IRange } from '../../../../../../editor/common/language/core/range.js';
-import { ModelDecorationOptions } from '../../../../../../editor/common/language/model/textModel.js';
+import { IModelDecorationOptions } from '../../../../../../editor/common/language/model.js';
 
 /**
  * Decoration object.
@@ -18,7 +18,7 @@ export interface ITextModelDecoration {
 	/**
 	 * Associated decoration options.
 	 */
-	options: ModelDecorationOptions;
+	options: IModelDecorationOptions;
 }
 
 /**

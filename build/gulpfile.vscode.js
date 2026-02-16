@@ -490,7 +490,6 @@ BUILD_TARGETS.forEach(buildTarget => {
 	const [vscode, vscodeMin] = ['', 'min'].map(minified => {
 		const sourceFolderName = `out-vscode${dashed(minified)}`;
 		const destinationFolderName = `VSCode${dashed(platform)}${dashed(arch)}`;
-		const ignoreUnusedForThisBuild = platform === 'linux' && arch === 'x64' && !minified;
 
 		const tasks = [
 			compileNativeExtensionsBuildTask,
@@ -505,22 +504,8 @@ BUILD_TARGETS.forEach(buildTarget => {
 		const vscodeTaskCI = task.define(`vscode${dashed(platform)}${dashed(arch)}${dashed(minified)}-ci`, task.series(...tasks));
 		gulp.task(vscodeTaskCI);
 
-		const setIgnoreUnusedForThisBuild = () => {
-			if (ignoreUnusedForThisBuild) {
-				process.env['VSCODE_TSC_IGNORE_UNUSED'] = '1';
-			}
-		};
-
-		const resetIgnoreUnusedForThisBuild = () => {
-			if (ignoreUnusedForThisBuild) {
-				delete process.env['VSCODE_TSC_IGNORE_UNUSED'];
-			}
-		};
-
 		const vscodeTask = task.define(`vscode${dashed(platform)}${dashed(arch)}${dashed(minified)}`, task.series(
-			setIgnoreUnusedForThisBuild,
 			minified ? compileBuildWithManglingTask : compileBuildWithoutManglingTask,
-			resetIgnoreUnusedForThisBuild,
 			cleanExtensionsBuildTask,
 			compileNonNativeExtensionsBuildTask,
 			compileExtensionMediaBuildTask,
