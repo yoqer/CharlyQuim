@@ -50,21 +50,52 @@ export function activate(context: vscode.ExtensionContext) {
 	// Phase 3: Handle element selected from Native Browser
 	context.subscriptions.push(
 		vscode.commands.registerCommand('hypno.browser.onElementSelected', async (data: any) => {
-			const markdown = `I want to reference this element:\n\`\`\`html\n${data.html}\n\`\`\``;
-			await vscode.env.clipboard.writeText(markdown);
+			let markdown = '';
 
-			const choice = await vscode.window.showInformationMessage(
-				'Element mapped to clipboard! Send to Continue?',
-				'Send to Continue', 'Cancel'
-			);
+			if (data.html) {
+				markdown += `\`\`\`html\n${data.html}\n\`\`\`\n\n`;
+			}
 
-			if (choice === 'Send to Continue') {
-				try {
-					await vscode.commands.executeCommand('continue.focusContinueInput');
-					setTimeout(() => vscode.commands.executeCommand('editor.action.clipboardPasteAction'), 150);
-				} catch (e) {
-					vscode.window.showErrorMessage('Could not find "Continue" extension.');
+			if (data.css && Object.keys(data.css).length > 0) {
+				markdown += `**Computed Styles:**\n\`\`\`css\n`;
+				for (const [prop, value] of Object.entries(data.css)) {
+					markdown += `${prop}: ${value};\n`;
 				}
+				markdown += `\`\`\`\n`;
+			}
+
+			const tagName = data.tagName || 'element';
+			let identifier = '';
+			if (data.id) {
+				identifier = `#${data.id}`;
+			} else if (data.className) {
+				const firstClass = data.className.split(/\s+/)[0];
+				if (firstClass) identifier = `.${firstClass}`;
+			}
+
+			const safeIdentifier = identifier.replace(/[^a-zA-Z0-9#.-]/g, '_');
+			const fileName = `${tagName}${safeIdentifier}.md`;
+
+			try {
+				const os = require('os');
+				const path = require('path');
+				const fs = require('fs/promises');
+
+				const tempFilePath = path.join(os.tmpdir(), fileName);
+				await fs.writeFile(tempFilePath, markdown, 'utf-8');
+				const fileUri = vscode.Uri.file(tempFilePath);
+
+				await vscode.commands.executeCommand('continue.selectFilesAsContext', fileUri, [fileUri]);
+
+				// Add the tag to the clipboard so it gets pasted into the input alongside the file context
+				// Using backticks formats it as an inline code block, giving it chip-like styling
+				await vscode.env.clipboard.writeText(`\`<${tagName}/>\` `);
+
+				setTimeout(() => {
+					vscode.commands.executeCommand('editor.action.clipboardPasteAction');
+				}, 600);
+			} catch (e) {
+				console.error('Failed to write element temp file and inject to Continue: ', e);
 			}
 		})
 	);
