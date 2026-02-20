@@ -114,16 +114,45 @@ function getHtmlForWebview(_webview: vscode.Webview): string {
 		#address-bar {
 			height: var(--toolbar-height);
 			background: var(--vscode-editor-background);
-			display: flex; align-items: center; padding: 0 12px; gap: 10px;
+			display: flex; align-items: center; padding: 0 12px; gap: 8px;
 			border-bottom: 1px solid var(--vscode-widget-border);
 			box-sizing: border-box;
+			position: relative;
+		}
+		#loading-bar {
+			position: absolute;
+			bottom: 0; left: 0; width: 100%; height: 2px;
+			background: transparent;
+			overflow: hidden;
+		}
+		#loading-bar::after {
+			content: '';
+			display: block;
+			width: 30%; height: 100%;
+			background: var(--vscode-progressBar-background);
+			position: relative;
+			transform: translateX(-100%);
+			opacity: 0;
+			transition: opacity 0.2s;
+		}
+		#loading-bar.is-loading::after {
+			opacity: 1;
+			animation: loading 1.5s infinite ease-in-out;
+		}
+		@keyframes loading {
+			0% { transform: translateX(-100%); }
+			100% { transform: translateX(350%); }
 		}
 		button {
 			background: transparent; border: none; color: var(--vscode-icon-foreground);
-			cursor: pointer; padding: 4px 8px; border-radius: 4px; display: flex;
-			align-items: center; justify-content: center; font-size: 14px;
+			cursor: pointer; height: 28px; width: 28px; border-radius: 4px; display: flex;
+			align-items: center; justify-content: center; padding: 0;
 		}
 		button:hover { background: var(--vscode-toolbar-hoverBackground); }
+		button.active { background: var(--vscode-toolbar-hoverBackground); color: var(--vscode-button-foreground); }
+		.spin { animation: spin 1s linear infinite; }
+		@keyframes spin { 100% { transform: rotate(360deg); } }
+		svg { width: 16px; height: 16px; }
 		#url-input {
 			flex: 1; height: 26px; background: var(--vscode-input-background);
 			color: var(--vscode-input-foreground); border: 1px solid var(--vscode-input-border);

@@ -530,6 +530,8 @@ export class CodeWindow extends BaseWindow implements ICodeWindow {
 				return { action: 'deny' };
 			});
 
+			this._hypnoBrowserView.webContents.removeAllListeners('will-navigate');
+
 			this._hypnoBrowserView.webContents.on('did-navigate', (event, url) => {
 				this._win.webContents.send('vscode:hypno-browser-navigated', url);
 			});
