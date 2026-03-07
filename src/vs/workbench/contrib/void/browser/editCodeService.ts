@@ -284,7 +284,7 @@ class EditCodeService extends Disposable implements IEditCodeService {
 	// 			secondary: [{
 	// 				id: 'void.onerror.opensettings',
 	// 				enabled: true,
-	// 				label: `Open Void's settings`,
+	// 				label: `Open HelvetiCode's settings`,
 	// 				tooltip: '',
 	// 				class: undefined,
 	// 				run: () => { this._commandService.executeCommand(VOID_OPEN_SETTINGS_ACTION_ID) }
@@ -743,7 +743,7 @@ class EditCodeService extends Disposable implements IEditCodeService {
 		const elt: IUndoRedoElement = {
 			type: UndoRedoElementType.Resource,
 			resource: uri,
-			label: 'Void Agent',
+			label: 'HelvetiCode Agent',
 			code: 'undoredo.editCode',
 			undo: async () => { opts?.onWillUndo?.(); await this._restoreVoidFileSnapshot(uri, beforeSnapshot) },
 			redo: async () => { if (afterSnapshot) await this._restoreVoidFileSnapshot(uri, afterSnapshot) }
@@ -1968,7 +1968,7 @@ class EditCodeService extends Disposable implements IEditCodeService {
 
 						const blocks = extractSearchReplaceBlocks(fullText)
 						if (blocks.length === 0) {
-							this._notificationService.info(`Void: We ran Fast Apply, but the LLM didn't output any changes.`)
+							this._notificationService.info(`HelvetiCode: We ran Fast Apply, but the LLM didn't output any changes.`)
 						}
 						this._writeURIText(uri, originalFileCode, 'wholeFileRange', { shouldRealignDiffAreas: true })
 
