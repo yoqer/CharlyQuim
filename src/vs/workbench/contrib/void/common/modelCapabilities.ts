@@ -65,6 +65,9 @@ export const defaultProviderSettings = {
 		region: 'us-east-1', // add region setting
 		endpoint: '', // optionally allow overriding default
 	},
+	minimax: {
+		apiKey: '',
+	},
 
 } as const
 
@@ -153,6 +156,10 @@ export const defaultModelsOfProvider = {
 	microsoftAzure: [],
 	awsBedrock: [],
 	liteLLM: [],
+	minimax: [ // https://platform.minimax.io/docs/api-reference/text-openai-api
+		'MiniMax-M2.5',
+		'MiniMax-M2.5-highspeed',
+	],
 
 
 } as const satisfies Record<ProviderName, string[]>
@@ -955,6 +962,41 @@ const deepseekSettings: VoidStaticProviderInfo = {
 
 
 
+// ---------------- MINIMAX ----------------
+const minimaxModelOptions = { // https://platform.minimax.io/docs/api-reference/text-openai-api
+	'MiniMax-M2.5': {
+		contextWindow: 204_800,
+		reservedOutputTokenSpace: 8_192,
+		cost: { input: 0.30, output: 1.20 },
+		downloadable: false,
+		supportsFIM: false,
+		supportsSystemMessage: 'system-role' as const,
+		specialToolFormat: 'openai-style' as const,
+		reasoningCapabilities: false as const,
+	},
+	'MiniMax-M2.5-highspeed': {
+		contextWindow: 204_800,
+		reservedOutputTokenSpace: 8_192,
+		cost: { input: 0.60, output: 2.40 },
+		downloadable: false,
+		supportsFIM: false,
+		supportsSystemMessage: 'system-role' as const,
+		specialToolFormat: 'openai-style' as const,
+		reasoningCapabilities: false as const,
+	},
+} as const satisfies { [s: string]: VoidStaticModelInfo }
+
+const minimaxSettings: VoidStaticProviderInfo = {
+	modelOptions: minimaxModelOptions,
+	modelOptionsFallback: (modelName) => {
+		const lower = modelName.toLowerCase()
+		if (lower.includes('minimax')) return { modelName: 'MiniMax-M2.5', recognizedModelName: 'MiniMax-M2.5', ...minimaxModelOptions['MiniMax-M2.5'] }
+		return null
+	},
+}
+
+
+
 // ---------------- MISTRAL ----------------
 
 const mistralModelOptions = { // https://mistral.ai/products/la-plateforme#pricing https://docs.mistral.ai/getting-started/models/models_overview/#premier-models
@@ -1474,6 +1516,7 @@ const modelSettingsOfProvider: { [providerName in ProviderName]: VoidStaticProvi
 	googleVertex: googleVertexSettings,
 	microsoftAzure: microsoftAzureSettings,
 	awsBedrock: awsBedrockSettings,
+	minimax: minimaxSettings,
 } as const
 
 
