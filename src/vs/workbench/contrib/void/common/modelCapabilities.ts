@@ -157,6 +157,8 @@ export const defaultModelsOfProvider = {
 	awsBedrock: [],
 	liteLLM: [],
 	minimax: [ // https://platform.minimax.io/docs/api-reference/text-openai-api
+		'MiniMax-M2.7',
+		'MiniMax-M2.7-highspeed',
 		'MiniMax-M2.5',
 		'MiniMax-M2.5-highspeed',
 	],
@@ -964,6 +966,26 @@ const deepseekSettings: VoidStaticProviderInfo = {
 
 // ---------------- MINIMAX ----------------
 const minimaxModelOptions = { // https://platform.minimax.io/docs/api-reference/text-openai-api
+	'MiniMax-M2.7': {
+		contextWindow: 204_800,
+		reservedOutputTokenSpace: 8_192,
+		cost: { input: 0.30, output: 1.20 },
+		downloadable: false,
+		supportsFIM: false,
+		supportsSystemMessage: 'system-role' as const,
+		specialToolFormat: 'openai-style' as const,
+		reasoningCapabilities: false as const,
+	},
+	'MiniMax-M2.7-highspeed': {
+		contextWindow: 204_800,
+		reservedOutputTokenSpace: 8_192,
+		cost: { input: 0.60, output: 2.40 },
+		downloadable: false,
+		supportsFIM: false,
+		supportsSystemMessage: 'system-role' as const,
+		specialToolFormat: 'openai-style' as const,
+		reasoningCapabilities: false as const,
+	},
 	'MiniMax-M2.5': {
 		contextWindow: 204_800,
 		reservedOutputTokenSpace: 8_192,
@@ -990,7 +1012,7 @@ const minimaxSettings: VoidStaticProviderInfo = {
 	modelOptions: minimaxModelOptions,
 	modelOptionsFallback: (modelName) => {
 		const lower = modelName.toLowerCase()
-		if (lower.includes('minimax')) return { modelName: 'MiniMax-M2.5', recognizedModelName: 'MiniMax-M2.5', ...minimaxModelOptions['MiniMax-M2.5'] }
+		if (lower.includes('minimax')) return { modelName: 'MiniMax-M2.7', recognizedModelName: 'MiniMax-M2.7', ...minimaxModelOptions['MiniMax-M2.7'] }
 		return null
 	},
 }
